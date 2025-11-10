@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact</title>
+    <link rel="stylesheet" href="contact-styles.css">
+</head>
+<body>
+
+    <h1>Contact</h1>
+
+    <table class="contact-table">
+        <thead>
+            <tr>
+                <th colspan="2">
+                    <h2>Send a Message</h2>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="label-cell">Name:</td>
+                <td><input type="text" class="input-field"></td>
+            </tr>
+            <tr>
+                <td class="label-cell">Email:</td>
+                <td><input type="email" class="input-field"></td>
+            </tr>
+            <tr>
+                <td class="label-cell">Phone:</td>
+                <td><input type="tel" class="input-field"></td>
+            </tr>
+            <tr>
+                <td class="label-cell">Subject:</td>
+                <td><input type="text" class="input-field"></td>
+            </tr>
+            <tr>
+                <td class="label-cell">Message:</td>
+                <td><textarea class="message-field"></textarea></td>
+            </tr>
+            <tr>
+                <td colspan="2" class="submit-cell">
+                    <button type="submit" onclick="alert('Form submitted!')">Send Message</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>

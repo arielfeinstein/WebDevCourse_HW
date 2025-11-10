@@ -1,0 +1,53 @@
+.contact-table {
+    border: 1px solid #add8e6;
+    border-collapse: collapse;
+    width: 400px;
+    background-color: #fff;
+}
+
+.contact-table th {
+    text-align: center;
+    padding: 10px;
+    background-color: #87ceeb;
+    color: white;
+}
+
+.contact-table td {
+    border: 1px solid #add8e6;
+    padding: 5px;
+}
+
+.label-cell {
+    width: 100px;
+    background-color: #f0f8ff;
+}
+
+.input-field {
+    width: 95%;
+    border: 1px solid #add8e6;
+}
+
+.message-field {
+    width: 95%;
+    height: 100px;
+    border: 1px solid #add8e6;
+}
+
+.submit-cell {
+    text-align: center;
+    padding: 10px;
+    background-color: #f0f8ff;
+}
+
+button {
+    background-color: #87ceeb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+}
