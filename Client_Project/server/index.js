@@ -1,7 +1,7 @@
 // imports
 const express = require('express');
 const path = require('path');
-const apiRoutes = require('./routes/api');
+const apiRoutes = require('../routes/api');
 
 
 // init express app and set port
