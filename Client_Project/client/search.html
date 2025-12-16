@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Search</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .video-card-img {
+            cursor: pointer;
+            height: 180px;
+            object-fit: cover;
+        }
+        .video-title {
+            cursor: pointer;
+            display: -webkit-box;
+            line-clamp: 2;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: 3em; /* Approx 2 lines */
+            line-height: 1.5em;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">My App</span>
+            <div class="d-flex align-items-center">
+                <span class="me-3" id="welcome-msg">Hello Guest</span>
+                <!-- User Image Placeholder -->
+                <img src="https://via.placeholder.com/40" alt="User Image" class="rounded-circle" id="user-img" width="40" height="40">
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-8">
+                <form id="search-form" class="d-flex">
+                    <input class="form-control me-2" type="search" placeholder="Search for songs or artists" aria-label="Search" id="search-input">
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="results-container" class="row row-cols-1 row-cols-md-3 g-4">
+            <!-- Results will be injected here -->
+        </div>
+    </div>
+
+    <!-- Video Player Modal -->
+    <div class="modal fade" id="playerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="playerModalLabel">Video Player</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="ratio ratio-16x9">
+                        <iframe id="player-iframe" src="" title="YouTube video player" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Favorites Modal -->
+    <div class="modal fade" id="favoritesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add to Playlist</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="playlists-list" class="mb-4">
+                        <!-- Playlists will be loaded here -->
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-playlist-name" class="form-label">Or create a new playlist:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="new-playlist-name" placeholder="Playlist name">
+                            <button class="btn btn-outline-primary" type="button" id="create-new-playlist-btn">Create</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Alert Modal -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Success</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmation-message">Video added successfully!</p>
+                    <a id="view-playlist-link" href="#" class="btn btn-primary">View Playlist</a>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="search.js"></script>
+</body>
+</html>
