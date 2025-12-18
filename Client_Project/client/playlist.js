@@ -1,5 +1,3 @@
-const API_KEY = "AIzaSyCUsiJP9RrSGpvEJjhxcavPNwfphXsxexM";
-
 document.addEventListener('DOMContentLoaded', async () => {
     const currUsername = sessionStorage.getItem('currUsername');
     if (!currUsername) {
@@ -145,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const videoIds = currentPlaylist.songs.map(s => s.youtubeId).join(',');
         
         try {
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds}&key=${API_KEY}`);
+            const response = await fetch(`/api/youtube/videos?part=snippet&id=${videoIds}`);
             const data = await response.json();
             
             if (data.items) {
