@@ -1,4 +1,3 @@
-const API_KEY = 'AIzaSyCUsiJP9RrSGpvEJjhxcavPNwfphXsxexM'; 
 const RESULTS_CONTAINER = document.getElementById('results-container');
 const SEARCH_INPUT = document.getElementById('search-input');
 const WELCOME_MSG = document.getElementById('welcome-msg');
@@ -80,7 +79,7 @@ async function performSearch(query) {
         let items = [];
         
         // 1. Search for videos
-            const searchRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=9&q=${encodeURIComponent(query)}&type=video&key=${API_KEY}`);
+            const searchRes = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}&maxResults=9`);
             if (!searchRes.ok) throw new Error(`YouTube Search API failed: ${searchRes.statusText}`);
             const searchData = await searchRes.json();
             
@@ -92,7 +91,7 @@ async function performSearch(query) {
             const videoIds = searchData.items.map(item => item.id.videoId).join(',');
             
             // 2. Get Video Details (Duration, View Count)
-            const detailsRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${API_KEY}`);
+            const detailsRes = await fetch(`/api/youtube/videos?part=contentDetails,statistics&id=${videoIds}`);
             if (!detailsRes.ok) throw new Error(`YouTube Videos API failed: ${detailsRes.statusText}`);
             const detailsData = await detailsRes.json();
             
@@ -294,7 +293,7 @@ function showConfirmation(playlistId, playlistName) {
     const viewPlaylistLink = document.getElementById('view-playlist-link');
 
     confirmationMsg.textContent = `"${currentVideoTitle}" added to "${playlistName}"!`;
-    viewPlaylistLink.href = `playlists.html?playlist=${playlistId}`;
+    viewPlaylistLink.href = `playlists.html?id=${playlistId}`;
 
     CONFIRMATION_MODAL.show();
 }

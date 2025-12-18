@@ -1,12 +1,15 @@
 // imports
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const apiRoutes = require('./routes/api');
 
+// load environment variables
+const apiKey = process.env.API_KEY;
+const PORT = process.env.PORT || 3000;
 
 // init express app and set port
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // parse JSON and urlencoded request bodies
 app.use(express.json());

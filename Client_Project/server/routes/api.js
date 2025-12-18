@@ -4,6 +4,7 @@ const router = express.Router();
 
 const authController = require('../controllers/authController');
 const playlistController = require('../controllers/playlistController');
+const youtubeDataController = require('../controllers/youtubeDataController');
 
 // POST /api/login
 // Authenticates a user. Expects JSON body: { username, password }.
@@ -125,6 +126,27 @@ router.get('/users/:username/playlists', (req, res) => {
 		return playlistController.getPlaylistsForUser(req, res);
 	}
 	res.status(501).json({ error: 'Not implemented: playlistController.getPlaylistsForUser' });
+});
+
+// YouTube Data API Routes
+// GET /api/youtube/search
+// Searches YouTube videos. Query params: ?q=searchQuery&maxResults=9
+// Returns YouTube search results with video snippets.
+router.get('/youtube/search', (req, res) => {
+	if (youtubeDataController && typeof youtubeDataController.searchVideos === 'function') {
+		return youtubeDataController.searchVideos(req, res);
+	}
+	res.status(501).json({ error: 'Not implemented: youtubeDataController.searchVideos' });
+});
+
+// GET /api/youtube/videos
+// Gets video details by IDs. Query params: ?id=videoId1,videoId2&part=snippet,contentDetails,statistics
+// Returns video details including snippet, contentDetails, statistics based on requested parts.
+router.get('/youtube/videos', (req, res) => {
+	if (youtubeDataController && typeof youtubeDataController.getVideoDetails === 'function') {
+		return youtubeDataController.getVideoDetails(req, res);
+	}
+	res.status(501).json({ error: 'Not implemented: youtubeDataController.getVideoDetails' });
 });
 
 module.exports = router;
