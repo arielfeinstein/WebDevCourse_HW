@@ -55,7 +55,25 @@ async function handleSubmit(e) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // If a user is already logged in (stored in sessionStorage, redirect to search
+  const existingUser = sessionStorage.getItem('currUsername');
+  if (existingUser) {
+    window.location.href = 'search.html';
+    return;
+  }
   const form = document.querySelector('form');
   if (!form) return;
   form.addEventListener('submit', handleSubmit);
+});
+
+// Handle page show event to manage bfcache scenarios (e.g., back button)
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    // If a user is already logged in (stored in sessionStorage, redirect to search
+    const existingUser = sessionStorage.getItem('currUsername');
+    if (existingUser) {
+      window.location.href = 'search.html';
+      return;
+    }
+  }
 });
