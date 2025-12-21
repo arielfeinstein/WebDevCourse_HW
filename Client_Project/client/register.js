@@ -1,7 +1,26 @@
 let submitBtn;
 let form;
 
+// Handle page show event to manage bfcache scenarios (e.g., back button)
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        // If a user is already logged in sessionStorage, redirect to search
+        const existingUser = sessionStorage.getItem('currUsername');
+        if (existingUser) {
+            window.location.href = 'search.html';
+            return;
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
+    // If a user is already logged in sessionStorage, redirect to search
+    const existingUser = sessionStorage.getItem('currUsername');
+    if (existingUser) {
+        window.location.href = 'search.html';
+        return;
+    }
+
     form = document.querySelector('form');
     if (!form) return;
 

@@ -1,35 +1,44 @@
-const RESULTS_CONTAINER = document.getElementById('results-container');
-const SEARCH_INPUT = document.getElementById('search-input');
-const WELCOME_MSG = document.getElementById('welcome-msg');
-const PLAYER_MODAL_EL = document.getElementById('playerModal');
-const PLAYER_MODAL = new bootstrap.Modal(PLAYER_MODAL_EL);
-const PLAYER_IFRAME = document.getElementById('player-iframe');
-const PLAYER_MODAL_LABEL = document.getElementById('playerModalLabel');
+// DOM elements (assigned once DOM is loaded)
+let RESULTS_CONTAINER;
+let SEARCH_INPUT;
+let WELCOME_MSG;
+let PLAYER_MODAL_EL;
+let PLAYER_MODAL;
+let PLAYER_IFRAME;
+let PLAYER_MODAL_LABEL;
 
 // Favorites Modal elements
-const FAVORITES_MODAL_EL = document.getElementById('favoritesModal');
-const FAVORITES_MODAL = new bootstrap.Modal(FAVORITES_MODAL_EL);
-const PLAYLISTS_LIST = document.getElementById('playlists-list');
-const NEW_PLAYLIST_NAME_INPUT = document.getElementById('new-playlist-name');
-const CREATE_NEW_PLAYLIST_BTN = document.getElementById('create-new-playlist-btn');
-const CONFIRMATION_MODAL_EL = document.getElementById('confirmationModal');
-const CONFIRMATION_MODAL = new bootstrap.Modal(CONFIRMATION_MODAL_EL);
+let FAVORITES_MODAL_EL;
+let FAVORITES_MODAL;
+let PLAYLISTS_LIST;
+let NEW_PLAYLIST_NAME_INPUT;
+let CREATE_NEW_PLAYLIST_BTN;
+let CONFIRMATION_MODAL_EL;
+let CONFIRMATION_MODAL;
 
 // Track current video being added
 let currentVideoId = null;
 let currentVideoTitle = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. User Authentication Display
-    const username = sessionStorage.getItem('currUsername');
-    if (username) {
-        WELCOME_MSG.textContent = `Hello ${username}`;
-        // Set profile image from sessionStorage (key: 'currUserImg') if available
-        const userImgEl = document.getElementById('user-img');
-        const currUserImg = sessionStorage.getItem('currUserImg');
-        if (userImgEl && currUserImg) {
-            userImgEl.src = currUserImg;
-        }
+    // Ensure user is authenticated (using sessionStorage). Redirect unsigned users to login.
+    const storedUser = sessionStorage.getItem('currUsername');
+    if (!storedUser) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // Assign DOM elements
+    initializeDOMElements();
+
+    // 1. User Authentication Display (now that we have username)
+    const username = storedUser;
+    WELCOME_MSG.textContent = `Hello ${username}`;
+    // Set profile image from storage if available
+    const userImgEl = document.getElementById('user-img');
+    const currUserImg = sessionStorage.getItem('currUserImg') || localStorage.getItem('currUserImg');
+    if (userImgEl && currUserImg) {
+        userImgEl.src = currUserImg;
     }
 
     // 2. URL Synchronization & Initial Search
@@ -64,6 +73,25 @@ document.addEventListener('DOMContentLoaded', () => {
         NEW_PLAYLIST_NAME_INPUT.value = '';
     });
 });
+
+function initializeDOMElements() {
+    RESULTS_CONTAINER = document.getElementById('results-container');
+    SEARCH_INPUT = document.getElementById('search-input');
+    WELCOME_MSG = document.getElementById('welcome-msg');
+    PLAYER_MODAL_EL = document.getElementById('playerModal');
+    PLAYER_IFRAME = document.getElementById('player-iframe');
+    PLAYER_MODAL_LABEL = document.getElementById('playerModalLabel');
+    PLAYER_MODAL = new bootstrap.Modal(PLAYER_MODAL_EL);
+
+    // Favorites Modal elements
+    FAVORITES_MODAL_EL = document.getElementById('favoritesModal');
+    PLAYLISTS_LIST = document.getElementById('playlists-list');
+    NEW_PLAYLIST_NAME_INPUT = document.getElementById('new-playlist-name');
+    CREATE_NEW_PLAYLIST_BTN = document.getElementById('create-new-playlist-btn');
+    CONFIRMATION_MODAL_EL = document.getElementById('confirmationModal');
+    FAVORITES_MODAL = new bootstrap.Modal(FAVORITES_MODAL_EL);
+    CONFIRMATION_MODAL = new bootstrap.Modal(CONFIRMATION_MODAL_EL);
+}
 
 function updateQueryString(query) {
     const url = new URL(window.location);
