@@ -31,8 +31,12 @@ document.addEventListener('DOMContentLoaded', async () => {
      * @property {string} thumbnail - Video thumbnail URL from YouTube API
      */
     /** @type {VideoItem[]} */
-    let currentVideos = []; // Stores video details + rating
+    let selectedPlaylistVideos = []; // Stores video details + rating for currently selected playlist
+    let visibleVideos = []; // Stores currently visible videos
+    let playbackQueue = []; // Stores the queue of videos to play
     let currentSortType = 'none';
+    let player = null;
+    let currentVideoIndex = -1;
 
     // Elements
     const playlistListEl = document.getElementById('playlist-list');
@@ -63,6 +67,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Event Listeners
     createPlaylistBtn.addEventListener('click', createPlaylist);
     deletePlaylistBtn.addEventListener('click', deleteCurrentPlaylist);
+    
+    // Start Over button - play from beginning
+    document.getElementById('start-over-btn').addEventListener('click', () => {
+        if (visibleVideos.length > 0) {
+            playbackQueue = [...visibleVideos];
+            currentVideoIndex = 0;
+            playVideo(playbackQueue[0].youtubeId, true); // autoplay
+        }
+    });
+    
+    // Resume button - continue from current position or start if nothing playing
+    document.getElementById('resume-btn').addEventListener('click', () => {
+        if (visibleVideos.length > 0) {
+            if (playbackQueue.length === 0 || currentVideoIndex === -1) {
+                // No previous playback, start from beginning
+                playbackQueue = [...visibleVideos];
+                currentVideoIndex = 0;
+                playVideo(playbackQueue[0].youtubeId, true); // autoplay
+            } else {
+                // Resume from current position
+                if (currentVideoIndex < playbackQueue.length) {
+                    playVideo(playbackQueue[currentVideoIndex].youtubeId, true); // autoplay
+                } else {
+                    // Reached end, start over
+                    currentVideoIndex = 0;
+                    playVideo(playbackQueue[0].youtubeId, true); // autoplay
+                }
+            }
+        }
+    });
+    
+    // Close player button
+    document.getElementById('close-player-btn').addEventListener('click', () => {
+        closePlayer();
+    });
+    
+    // Previous video button
+    document.getElementById('prev-video-btn').addEventListener('click', () => {
+        playPreviousVideo();
+    });
+    
+    // Next video button
+    document.getElementById('next-video-btn').addEventListener('click', () => {
+        playNextVideo();
+    });
+    
     filterInput.addEventListener('input', renderVideos);
     
     sortOptions.forEach(option => {
@@ -96,11 +146,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             item.dataset.id = playlist.id;
             item.innerHTML = `
                 <span class="text-truncate">${playlist.name}</span>
-                <button class="btn btn-sm btn-outline-secondary play-playlist-btn" title="Play (Placeholder)">&#9658;</button>
+                <button class="btn btn-sm btn-outline-secondary play-playlist-btn" title="Play playlist">&#9658;</button>
             `;
-            item.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('play-playlist-btn')) {
-                    selectPlaylist(playlist.id);
+            item.addEventListener('click', async (e) => {
+                const shouldPlay = e.target.classList.contains('play-playlist-btn');
+                if (shouldPlay) {
+                    e.stopPropagation();
+                }
+                
+                // Always select the playlist first (this resets visibleVideos)
+                await selectPlaylist(playlist.id);
+                
+                // If play button was clicked, start playing
+                if (shouldPlay && visibleVideos.length > 0) {
+                    playbackQueue = [...visibleVideos];
+                    currentVideoIndex = 0;
+                    playVideo(playbackQueue[0].youtubeId, true); // autoplay
                 }
             });
             playlistListEl.appendChild(item);
@@ -110,6 +171,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function selectPlaylist(id) {
         currentPlaylist = allPlaylists.find(p => p.id === id);
         if (!currentPlaylist) return;
+
+        // Close player and reset playback state when switching playlists
+        closePlayer();
+        playbackQueue = [];
+        currentVideoIndex = -1;
 
         // Update UI
         document.querySelectorAll('.playlist-item').forEach(el => {
@@ -130,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadPlaylistVideos() {
         videoListEl.innerHTML = '<div class="text-center">Loading videos...</div>';
-        currentVideos = [];
+        selectedPlaylistVideos = [];
 
         if (!currentPlaylist.songs || currentPlaylist.songs.length === 0) {
             videoListEl.innerHTML = '<div class="text-center">No videos in this playlist.</div>';
@@ -148,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (data.items) {
                 // Map API results back to playlist songs (preserving order and entryId)
-                currentVideos = currentPlaylist.songs.map(song => {
+                selectedPlaylistVideos = currentPlaylist.songs.map(song => {
                     const details = data.items.find(item => item.id === song.youtubeId);
                     return {
                         ...song, // includes entryId, youtubeId, rating (if exists)
@@ -173,16 +239,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderVideos() {
         const filterText = filterInput.value.toLowerCase();
-        const filteredVideos = currentVideos.filter(v => v.title.toLowerCase().includes(filterText));
+        visibleVideos = selectedPlaylistVideos.filter(v => v.title.toLowerCase().includes(filterText));
 
         videoListEl.innerHTML = '';
         
-        if (filteredVideos.length === 0) {
+        if (visibleVideos.length === 0) {
             videoListEl.innerHTML = '<div class="text-center">No videos found.</div>';
             return;
         }
 
-        filteredVideos.forEach(video => {
+        visibleVideos.forEach(video => {
             const item = document.createElement('div');
             item.className = 'list-group-item d-flex align-items-center';
             
@@ -230,9 +296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sortDropdownBtn) sortDropdownBtn.textContent = sortLabels[type] || 'Sort By';
 
         if (type === 'name') {
-            currentVideos.sort((a, b) => a.title.localeCompare(b.title));
+            selectedPlaylistVideos.sort((a, b) => a.title.localeCompare(b.title));
         } else if (type === 'rating') {
-            currentVideos.sort((a, b) => {
+            selectedPlaylistVideos.sort((a, b) => {
                 const ratingA = a.rating !== undefined ? a.rating : 0;
                 const ratingB = b.rating !== undefined ? b.rating : 0;
                 return ratingB - ratingA; // Descending order
@@ -250,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (res.ok) {
                 // Update local state
-                const video = currentVideos.find(v => v.entryId === entryId);
+                const video = selectedPlaylistVideos.find(v => v.entryId === entryId);
                 if (video) {
                     video.rating = parseInt(newRating);
                     // Also update the song in the currentPlaylist object to keep it in sync
@@ -282,8 +348,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (res.ok) {
+                // Check if this video is in the playback queue
+                const indexInQueue = playbackQueue.findIndex(v => v.entryId === entryId);
+                
+                if (indexInQueue !== -1) {
+                    // Video is in the playback queue
+                    if (indexInQueue === currentVideoIndex) {
+                        // Currently playing video is being deleted
+                        playbackQueue.splice(indexInQueue, 1);
+                        
+                        // Move to next video if available
+                        if (playbackQueue.length > 0) {
+                            if (currentVideoIndex >= playbackQueue.length) {
+                                currentVideoIndex = playbackQueue.length - 1;
+                            }
+                            // Play the next video (which is now at the same index)
+                            if (currentVideoIndex < playbackQueue.length) {
+                                playVideo(playbackQueue[currentVideoIndex].youtubeId);
+                            } else {
+                                // No more videos, close player
+                                closePlayer();
+                                currentVideoIndex = -1;
+                            }
+                        } else {
+                            // Queue is empty, close player
+                            closePlayer();
+                            currentVideoIndex = -1;
+                        }
+                    } else if (indexInQueue < currentVideoIndex) {
+                        // Deleted video is before current video, adjust index
+                        playbackQueue.splice(indexInQueue, 1);
+                        currentVideoIndex--;
+                    } else {
+                        // Deleted video is after current video, just remove it
+                        playbackQueue.splice(indexInQueue, 1);
+                    }
+                }
+                
                 // Remove from local state
-                currentVideos = currentVideos.filter(v => v.entryId !== entryId);
+                selectedPlaylistVideos = selectedPlaylistVideos.filter(v => v.entryId !== entryId);
                 currentPlaylist.songs = currentPlaylist.songs.filter(s => s.entryId !== entryId);
                 renderVideos();
             } else {
@@ -357,6 +460,87 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (err) {
             console.error('Error creating playlist:', err);
+        }
+    }
+
+    function playVideo(videoId, autoplay = false) {
+        const playerContainer = document.getElementById('player-container');
+        playerContainer.classList.remove('d-none');
+
+        if (player && typeof player.loadVideoById === 'function') {
+            player.loadVideoById(videoId);
+            if (autoplay && typeof player.playVideo === 'function') {
+                player.playVideo();
+            }
+        } else if (window.YT && window.YT.Player) {
+            player = new YT.Player('youtube-player', {
+                height: '100%',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    autoplay: autoplay ? 1 : 0
+                },
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        } else {
+            console.warn('YouTube API not ready yet');
+        }
+        
+        updatePlayerButtons();
+    }
+    
+    function closePlayer() {
+        const playerContainer = document.getElementById('player-container');
+        playerContainer.classList.add('d-none');
+        
+        // Stop the video if player exists
+        if (player && typeof player.stopVideo === 'function') {
+            player.stopVideo();
+        }
+    }
+    
+    function playPreviousVideo() {
+        if (playbackQueue.length === 0 || currentVideoIndex <= 0) {
+            return; // At the beginning or no queue
+        }
+        
+        currentVideoIndex--;
+        playVideo(playbackQueue[currentVideoIndex].youtubeId);
+    }
+    
+    function playNextVideo() {
+        if (playbackQueue.length === 0 || currentVideoIndex >= playbackQueue.length - 1) {
+            return; // At the end or no queue
+        }
+        
+        currentVideoIndex++;
+        playVideo(playbackQueue[currentVideoIndex].youtubeId);
+    }
+    
+    function updatePlayerButtons() {
+        const prevBtn = document.getElementById('prev-video-btn');
+        const nextBtn = document.getElementById('next-video-btn');
+        
+        if (prevBtn && nextBtn) {
+            // Disable prev button if at start or no queue
+            prevBtn.disabled = playbackQueue.length === 0 || currentVideoIndex <= 0;
+            
+            // Disable next button if at end or no queue
+            nextBtn.disabled = playbackQueue.length === 0 || currentVideoIndex >= playbackQueue.length - 1;
+        }
+    }
+
+    function onPlayerStateChange(event) {
+        if (event.data === YT.PlayerState.ENDED) {
+            currentVideoIndex++;
+            if (currentVideoIndex < playbackQueue.length) {
+                playVideo(playbackQueue[currentVideoIndex].youtubeId);
+            } else {
+                // Reached end of playlist
+                currentVideoIndex = -1;
+            }
         }
     }
 });
