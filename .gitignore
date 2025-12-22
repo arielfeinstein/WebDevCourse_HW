@@ -3,3 +3,5 @@ node_modules/
 .env
 .vscode/
 /Client_Project/hw-steps.txt
+.github/
+Client_Project/server/data/
