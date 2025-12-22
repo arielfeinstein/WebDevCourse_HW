@@ -5,6 +5,7 @@ Overall file shape:
 An array of user objects
 [
     {
+        "id": "string",          // unique user id (string)
         "username": "string",    // unique username
         "email": "string",       // user's email address
         "firstName": "string",   // user's first name
@@ -16,7 +17,9 @@ An array of user objects
 ]
 
 Notes:
-- Passwords are stored in plaintext for this exercise; do NOT do this in production.
+- the user's 'id' currently has no functional purpose beyond being a unique identifier as the specification was added later.
+  for all practical purposes, 'username' is the unique identifier for users. 
+- Passwords are stored in plaintext for this exercise as requested.
 - `playlistIDs` is an array of playlist `id` values referencing entries in `data/playlists.json`.
 - Validation helpers in this controller expect `username`, `email`, `firstName`, `imgUrl`, and `password` to be present when registering.
 */
@@ -25,6 +28,11 @@ const { readUsersFromJson, writeUsersToJson } = require('../utils/userHelpers');
 
 const MIN_USERNAME_LENGTH = 6;
 const MIN_PASSWORD_LENGTH = 6;
+
+// Helper: generate a stable-unique id for new users
+function generateId() {
+    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
 
 exports.register = (req, res) => {
     const { username, email, firstName, imgUrl, password, passwordConfirmation } = req.body;
@@ -101,9 +109,21 @@ exports.getUserImageUrl = (req, res) => {
 function addUserToJson({ username, email, firstName, imgUrl, password }) {
     const users = readUsersFromJson();
 
-    users.push({ username, email, firstName, imgUrl, password, playlistIDs: [] });
+    const newUser = {
+        id: generateId(),
+        username,
+        email,
+        firstName,
+        imgUrl,
+        password,
+        playlistIDs: []
+    };
+
+    users.push(newUser);
 
     writeUsersToJson(users);
+
+    return newUser;
 }
 
 function validateUsername(username) {
