@@ -321,7 +321,7 @@ function showConfirmation(playlistId, playlistName) {
     const viewPlaylistLink = document.getElementById('view-playlist-link');
 
     confirmationMsg.textContent = `"${currentVideoTitle}" added to "${playlistName}"!`;
-    viewPlaylistLink.href = `playlists.html?id=${playlistId}`;
+    viewPlaylistLink.href = `playlists/playlists.html?id=${playlistId}`;
 
     CONFIRMATION_MODAL.show();
 }
