@@ -55,7 +55,7 @@ This application follows a traditional **client-server architecture**:
   - `server/data/users.json` - User accounts
   - `server/data/playlists.json` - Playlists and songs
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 Client_Project/
@@ -95,9 +95,9 @@ Client_Project/
     ├── routes/                 # API route definitions
     │   └── api.js              # All REST endpoints
     │
-    ├── data/                   # JSON "database"
-    │   ├── users.json          # User accounts
-    │   └── playlists.json      # Playlist data
+    ├── data/                   # JSON "database" - will be created after registration of the first user
+    │   ├── users.json          # User accounts - will be created after registration of the first user
+    │   └── playlists.json      # Playlist data - will be created after adding the first playlist
     │
     └── utils/                  # Helper functions
         └── userHelpers.js      # JSON file operations
@@ -158,7 +158,7 @@ Open your browser and navigate to:
 - **Search**: `http://localhost:3000/search.html` (requires login)
 - **Playlists**: `http://localhost:3000/playlists/playlists.html` (requires login)
 
-## 📚 Data Models
+## Data Models
 
 ### User Model
 ```javascript
