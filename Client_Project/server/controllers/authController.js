@@ -48,7 +48,6 @@ exports.register = (req, res) => {
         return res.status(400).json({ error: emailStatusMsg });
     }
 
-    // TODO: remove passwordConfirmation from here and only validate password
     let {isPasswordOkay, passwordStatusMsg} = validatePassword(password, passwordConfirmation);
     if (!isPasswordOkay) {
         return res.status(400).json({ error: passwordStatusMsg });
@@ -160,10 +159,6 @@ function validateEmail(email) {
 function validatePassword(password, passwordConfirmation) {
     if (!password || typeof password !== 'string' || password.length < 6) {
         return { isPasswordOkay: false, passwordStatusMsg: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` };
-    }
-
-    if (password !== passwordConfirmation) {
-        return { isPasswordOkay: false, passwordStatusMsg: 'Passwords do not match.' };
     }
 
     // atleast one letter and one non letter
