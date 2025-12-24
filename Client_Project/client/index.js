@@ -1,7 +1,7 @@
 const studentDetails = {
     name: "Ariel Feinstein",
     id: "123455678",
-    githubRepo: "https://github.com/arielfeinstein/WebDevCourse_HW",
+    githubRepo: "https://github.com/arielfeinstein/WebDevCourse_HW/tree/main/Client_Project",
     deployedLink: "https://webdevcourse-hw.onrender.com/index.html",
     linkToLogin: "/login.html",
     linkToRegister: "/register.html",
