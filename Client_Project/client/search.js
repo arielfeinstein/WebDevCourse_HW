@@ -96,7 +96,6 @@ function initializeDOMElements() {
 function updateQueryString(query) {
     const url = new URL(window.location);
     url.searchParams.set('q', query);
-    // TODO: do we need this?
     window.history.pushState({}, '', url);
 }
 
