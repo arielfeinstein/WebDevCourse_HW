@@ -1,42 +1,39 @@
 const studentDetails = {
     name: "Ariel Feinstein",
-    id: "123455678 - not real, real id is found in the moodle submission",
+    id: "123455678",
     githubRepo: "https://github.com/arielfeinstein/WebDevCourse_HW",
-    deployedLink: "https://example.com/your-deployed-app - replace with your actual deployed link",
+    deployedLink: "https://webdevcourse-hw.onrender.com/index.html",
     linkToLogin: "/login.html",
     linkToRegister: "/register.html",
-    note: "The id isn't real, please check the moodle submission for the actual id."
+    notes: [
+        "The id isn't real, please check the moodle submission for the actual id.",
+        "When clicking on the deployed link, it may take some time to load as the server is hosted on a free tier service."
+    ]
 };
 
 function populateStudentCard(student) {
-    const nameEl = document.getElementById('student-name');
-    const idEl = document.getElementById('student-id');
-    const noteEl = document.getElementById('student-note');
-    const githubLink = document.getElementById('github-link');
-    const deployedLink = document.getElementById('deployed-link');
-    const loginBtn = document.getElementById('login-btn');
-    const registerBtn = document.getElementById('register-btn');
+    document.getElementById('student-name').textContent = student.name;
+    document.getElementById('student-id').textContent = student.id;
 
-    if (nameEl) nameEl.textContent = student.name || '';
-    if (idEl) idEl.textContent = student.id || '';
-    if (noteEl) noteEl.textContent = student.note || '';
-    if (githubLink) {
-        githubLink.href = student.githubRepo || '#';
-        githubLink.textContent = student.githubRepo || 'repo';
-    }
-    if (deployedLink) {
-        deployedLink.href = student.deployedLink || '#';
-        deployedLink.textContent = student.deployedLink || 'deployed';
-    }
-    if (loginBtn) loginBtn.href = student.linkToLogin || '/login.html';
-    if (registerBtn) registerBtn.href = student.linkToRegister || '/register.html';
+    const notesList = document.getElementById('notes-list');
+    student.notes.forEach(n => {
+        const li = document.createElement('li');
+        li.textContent = n;
+        notesList.appendChild(li);
+    });
+
+    const githubLink = document.getElementById('github-link');
+    githubLink.href = student.githubRepo;
+    githubLink.textContent = student.githubRepo;
+
+    const deployedLink = document.getElementById('deployed-link');
+    deployedLink.href = student.deployedLink;
+    deployedLink.textContent = student.deployedLink;
+
+    document.getElementById('login-btn').href = student.linkToLogin;
+    document.getElementById('register-btn').href = student.linkToRegister;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     populateStudentCard(studentDetails);
 });
-
-// Export for testing or reuse (optional)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { placeholderStudentDetails: studentDetails, populateStudentCard };
-}
