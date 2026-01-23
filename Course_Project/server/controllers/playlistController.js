@@ -26,6 +26,7 @@ Notes:
 const fs = require('fs');
 const path = require('path');
 const { readUsersFromJson, writeUsersToJson } = require('../utils/userHelpers');
+const youtubeService = require('../services/youtubeDataService');
 
 const DATA_FILE = path.join(__dirname, '../data/playlists.json');
 
@@ -54,6 +55,51 @@ function writePlaylistsToJson(playlists) {
 function generateId() {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 }
+
+// GET /playlists (render playlists page with data)
+exports.renderPlaylistsPage = async (req, res) => {
+    const playlistId = req.query.id;
+    let playlists = [];
+    let selectedPlaylist = null;
+    let videosWithDetails = [];
+    let error = null;
+
+    try {
+        // Get all playlists
+        playlists = readPlaylistsFromJson();
+
+        // If a specific playlist is selected, fetch video details
+        if (playlistId) {
+            selectedPlaylist = playlists.find(p => p.id === playlistId);
+            
+            if (selectedPlaylist && selectedPlaylist.songs && selectedPlaylist.songs.length > 0) {
+                const youtubeIds = selectedPlaylist.songs.map(song => song.youtubeId);
+                const videoDetails = await youtubeService.getCompleteVideoInfo(youtubeIds);
+                
+                // Merge with song entries (to preserve entryId and rating)
+                videosWithDetails = selectedPlaylist.songs.map(song => {
+                    const details = videoDetails.find(v => v.videoId === song.youtubeId);
+                    return {
+                        entryId: song.entryId,
+                        youtubeId: song.youtubeId,
+                        rating: song.rating || null,
+                        ...details
+                    };
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Error loading playlists:', err);
+        error = err.message || 'An error occurred while loading playlists';
+    }
+
+    res.render('playlists/playlists', {
+        playlists,
+        selectedPlaylist,
+        videos: videosWithDetails,
+        error
+    });
+};
 
 // GET /api/playlists
 exports.getPlaylists = (req, res) => {

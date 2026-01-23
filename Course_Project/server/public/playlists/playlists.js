@@ -1,410 +1,456 @@
 /**
- * Main orchestrator for the playlists page.
- * Coordinates between state, API, UI, and player modules.
+ * YouTube Playlist Manager - Simplified for Server-Side Rendering
  * 
- * Dependencies (loaded before this file):
- * - playlistState.js  - Shared state management
- * - playlistApi.js    - API communication
- * - playlistPlayer.js - YouTube player handling
- * - playlistUI.js     - UI rendering
- * - common.js         - Shared utilities (logout)
+ * This file handles client-side interactions for the playlist page.
+ * The playlists and videos are server-rendered, so this file only manages:
+ * - User authentication display
+ * - YouTube playback controls  
+ * - Video rating updates
+ * - Video removal
+ * - Playlist deletion
+ * - Filtering and sorting
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // ============================================
-    // AUTHENTICATION CHECK
-    // ============================================
-    
+// ================================================
+// STATE
+// ================================================
+
+let player = null;
+let playbackQueue = [];
+let currentVideoIndex = 0;
+let allVideos = []; // Cache of all video elements for filtering/sorting
+
+// ================================================
+// INITIALIZATION
+// ================================================
+
+document.addEventListener('DOMContentLoaded', async function() {
     const currUsername = sessionStorage.getItem('currUsername');
+    
+    // Ensure user is logged in
     if (!currUsername) {
         window.location.href = '/login';
         return;
     }
-    PlaylistState.currUsername = currUsername;
 
-    // ============================================
-    // INITIALIZE MODULES
-    // ============================================
+    // Update welcome message and user image
+    updateUserDisplay(currUsername);
     
-    PlaylistUI.init(handlePlaylistSelect);
-    PlaylistPlayer.init();
+    // Cache all videos for filtering/sorting
+    cacheVideoElements();
     
-    // ============================================
-    // SETUP USER DISPLAY
-    // ============================================
-    
-    const imageUrl = await PlaylistApi.fetchUserImage(currUsername);
-    PlaylistUI.updateUserDisplay(currUsername, imageUrl);
-
-    // ============================================
-    // LOAD INITIAL DATA
-    // ============================================
-    
-    await loadPlaylists();
-    selectInitialPlaylist();
-
-    // ============================================
-    // SETUP EVENT LISTENERS
-    // ============================================
-    
+    // Setup event listeners
     setupEventListeners();
 });
 
+// YouTube IFrame API ready callback
+window.onYouTubeIframeAPIReady = function() {
+    console.log('YouTube IFrame API is ready');
+};
 
 // ================================================
-// DATA LOADING FUNCTIONS
+// USER DISPLAY
 // ================================================
 
-/**
- * Load all playlists for the current user
- */
-async function loadPlaylists() {
-    PlaylistState.allPlaylists = await PlaylistApi.fetchUserPlaylists(PlaylistState.currUsername);
-    PlaylistUI.renderPlaylistSidebar();
-}
-
-/**
- * Select initial playlist based on URL param or first available
- */
-function selectInitialPlaylist() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const playlistIdFromUrl = urlParams.get('id');
-
-    if (playlistIdFromUrl) {
-        handlePlaylistSelect(playlistIdFromUrl, false);
-    } else if (PlaylistState.allPlaylists.length > 0) {
-        handlePlaylistSelect(PlaylistState.allPlaylists[0].id, false);
-    }
-}
-
-/**
- * Load video details for the current playlist
- */
-async function loadPlaylistVideos() {
-    PlaylistUI.showVideoLoading();
-    PlaylistState.selectedPlaylistVideos = [];
-    PlaylistState.visibleVideos = [];
-
-    const currentPlaylist = PlaylistState.currentPlaylist;
+async function updateUserDisplay(username) {
+    document.getElementById('welcome-msg').textContent = `Hello, ${username}`;
     
-    if (!currentPlaylist.songs || currentPlaylist.songs.length === 0) {
-        PlaylistUI.showEmptyPlaylist();
-        return;
-    }
-
-    // Fetch video details from YouTube API
-    const videoIds = currentPlaylist.songs.map(s => s.youtubeId).join(',');
-    const videoDetails = await PlaylistApi.fetchVideoDetails(videoIds);
-
-    if (videoDetails.length === 0) {
-        PlaylistUI.showVideoError('Failed to load video details. Check API Key.');
-        return;
-    }
-
-    // Merge API results with playlist song data
-    PlaylistState.selectedPlaylistVideos = currentPlaylist.songs.map(song => {
-        const details = videoDetails.find(item => item.id === song.youtubeId);
-        return {
-            ...song,
-            title: details ? details.snippet.title : 'Unknown Title',
-            thumbnail: details ? details.snippet.thumbnails.default.url : 'https://via.placeholder.com/120x90'
-        };
-    });
-
-    // Apply current sort if any
-    if (PlaylistState.currentSortType !== 'none') {
-        sortVideos(PlaylistState.currentSortType);
-    }
-
-    renderVideoList();
-}
-
-
-// ================================================
-// PLAYLIST SELECTION & MANAGEMENT
-// ================================================
-
-/**
- * Handle playlist selection (callback for UI)
- * @param {string} playlistId - ID of selected playlist
- * @param {boolean} shouldPlay - Whether to start playback immediately
- */
-async function handlePlaylistSelect(playlistId, shouldPlay = false) {
-    PlaylistState.currentPlaylist = PlaylistState.allPlaylists.find(p => p.id === playlistId);
-    if (!PlaylistState.currentPlaylist) return;
-
-    // Reset playback state when switching playlists
-    PlaylistPlayer.closePlayer();
-    PlaylistState.resetPlayback();
-
-    // Update UI
-    PlaylistUI.setActivePlaylist(playlistId);
-    PlaylistUI.showPlaylistContent(PlaylistState.currentPlaylist.name);
-
-    // Update URL without page reload
-    updateUrlWithPlaylistId(playlistId);
-
-    // Load videos
-    await loadPlaylistVideos();
-
-    // Start playback if requested
-    if (shouldPlay && PlaylistState.visibleVideos.length > 0) {
-        PlaylistPlayer.startFromBeginning();
-    }
-}
-
-/**
- * Update browser URL with playlist ID
- * @param {string} playlistId 
- */
-function updateUrlWithPlaylistId(playlistId) {
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.set('id', playlistId);
-    window.history.pushState({}, '', newUrl);
-}
-
-/**
- * Clear playlist ID from URL
- */
-function clearUrlPlaylistId() {
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.delete('id');
-    window.history.pushState({}, '', newUrl);
-}
-
-
-// ================================================
-// VIDEO MANAGEMENT
-// ================================================
-
-/**
- * Render the video list with current filters
- */
-function renderVideoList() {
-    PlaylistUI.renderVideos(handleRatingChange, handleVideoDelete, handleVideoPlay);
-}
-
-/**
- * Handle playing a specific video from the list
- * @param {string} entryId 
- */
-function handleVideoPlay(entryId) {
-    const state = PlaylistState;
-    const index = state.visibleVideos.findIndex(v => v.entryId === entryId);
-    
-    if (index !== -1) {
-        // Update queue to start from this video
-        state.playbackQueue = state.visibleVideos.slice(index);
-        state.currentVideoIndex = 0;
-        
-        if (state.playbackQueue.length > 0) {
-            PlaylistPlayer.playVideo(state.playbackQueue[0].youtubeId, true);
+    try {
+        const response = await fetch(`/api/users/${username}/image`);
+        const data = await response.json();
+        if (data.imageUrl) {
+            document.getElementById('user-img').src = data.imageUrl;
         }
+    } catch (error) {
+        console.error('Error fetching user image:', error);
     }
 }
 
-/**
- * Sort videos by the specified type
- * @param {string} sortType - 'name' or 'rating'
- */
-function sortVideos(sortType) {
-    PlaylistState.currentSortType = sortType;
-    PlaylistUI.updateSortButtonText(sortType);
+// ================================================
+// VIDEO CACHING
+// ================================================
 
-    if (sortType === 'name') {
-        PlaylistState.selectedPlaylistVideos.sort((a, b) => 
-            a.title.localeCompare(b.title)
-        );
-    } else if (sortType === 'rating') {
-        PlaylistState.selectedPlaylistVideos.sort((a, b) => {
-            const ratingA = a.rating !== undefined ? a.rating : 0;
-            const ratingB = b.rating !== undefined ? b.rating : 0;
-            return ratingB - ratingA; // Descending order
+function cacheVideoElements() {
+    allVideos = Array.from(document.querySelectorAll('.video-item'));
+}
+
+function getVisibleVideos() {
+    return allVideos.filter(video => !video.classList.contains('d-none'));
+}
+
+// ================================================
+// YOUTUBE PLAYER
+// ================================================
+
+function createPlayer(videoId) {
+    const playerContainer = document.getElementById('player-container');
+    if (!playerContainer) return;
+    
+    playerContainer.classList.remove('d-none');
+    
+    if (!player) {
+        player = new YT.Player('youtube-player', {
+            height: '100%',
+            width: '100%',
+            videoId: videoId,
+            events: {
+                'onStateChange': onPlayerStateChange
+            }
         });
+    } else if (player.loadVideoById) {
+        player.loadVideoById(videoId);
+        player.playVideo();
     }
 }
 
-/**
- * Handle rating change for a video
- * @param {string} entryId - Video entry ID
- * @param {string} newRating - New rating value
- */
-async function handleRatingChange(entryId, newRating) {
-    const success = await PlaylistApi.updateSongRating(
-        PlaylistState.currentPlaylist.id,
-        entryId,
-        newRating
-    );
+function onPlayerStateChange(event) {
+    // Auto-play next video when current finishes
+    if (event.data === YT.PlayerState.ENDED) {
+        playNextVideo();
+    }
+}
 
-    if (!success) {
-        alert('Failed to update rating');
+function startPlayback() {
+    const visibleVideos = getVisibleVideos();
+    
+    if (visibleVideos.length === 0) {
+        alert('No videos to play');
         return;
     }
+    
+    playbackQueue = visibleVideos.map(item => ({
+        entryId: item.dataset.entryId,
+        youtubeId: item.dataset.videoId
+    }));
+    
+    currentVideoIndex = 0;
+    createPlayer(playbackQueue[0].youtubeId);
+}
 
-    // Update local state
-    const video = PlaylistState.selectedPlaylistVideos.find(v => v.entryId === entryId);
-    if (video) {
-        video.rating = parseInt(newRating);
-
-        // Also update in the playlist object
-        const songInPlaylist = PlaylistState.currentPlaylist.songs.find(s => s.entryId === entryId);
-        if (songInPlaylist) {
-            songInPlaylist.rating = parseInt(newRating);
+function resumePlayback() {
+    if (playbackQueue.length > 0 && player) {
+        const playerContainer = document.getElementById('player-container');
+        if (playerContainer) {
+            playerContainer.classList.remove('d-none');
         }
-
-        // Re-sort if sorting by rating
-        if (PlaylistState.currentSortType === 'rating') {
-            sortVideos('rating');
+        if (player.playVideo) {
+            player.playVideo();
         }
-
-        renderVideoList();
+    } else {
+        startPlayback();
     }
 }
 
-/**
- * Handle video deletion
- * @param {string} entryId - Video entry ID
- */
-async function handleVideoDelete(entryId) {
+function playNextVideo() {
+    if (currentVideoIndex < playbackQueue.length - 1) {
+        currentVideoIndex++;
+        const nextVideo = playbackQueue[currentVideoIndex];
+        if (player && player.loadVideoById) {
+            player.loadVideoById(nextVideo.youtubeId);
+            player.playVideo();
+        }
+    }
+}
+
+function playPreviousVideo() {
+    if (currentVideoIndex > 0) {
+        currentVideoIndex--;
+        const prevVideo = playbackQueue[currentVideoIndex];
+        if (player && player.loadVideoById) {
+            player.loadVideoById(prevVideo.youtubeId);
+            player.playVideo();
+        }
+    }
+}
+
+function closePlayer() {
+    const playerContainer = document.getElementById('player-container');
+    if (playerContainer) {
+        playerContainer.classList.add('d-none');
+    }
+    if (player && player.stopVideo) {
+        player.stopVideo();
+    }
+}
+
+// ================================================
+// FILTERING
+// ================================================
+
+function filterVideos() {
+    const filterInput = document.getElementById('filter-input');
+    if (!filterInput) return;
+    
+    const filterText = filterInput.value.toLowerCase();
+    
+    allVideos.forEach(video => {
+        const title = (video.dataset.videoTitle || '').toLowerCase();
+        if (title.includes(filterText)) {
+            video.classList.remove('d-none');
+        } else {
+            video.classList.add('d-none');
+        }
+    });
+}
+
+// ================================================
+// SORTING
+// ================================================
+
+function sortVideos(sortType) {
+    const videoList = document.getElementById('video-list');
+    if (!videoList) return;
+    
+    // Update button text
+    const sortButton = document.getElementById('sort-dropdown-btn');
+    if (sortButton) {
+        sortButton.textContent = sortType === 'name' ? 'Sort: Alphabetical' : 'Sort: Rating';
+    }
+    
+    // Get all video items
+    const videos = Array.from(videoList.querySelectorAll('.video-item'));
+    
+    // Sort based on type
+    videos.sort((a, b) => {
+        if (sortType === 'name') {
+            const titleA = (a.dataset.videoTitle || '').toLowerCase();
+            const titleB = (b.dataset.videoTitle || '').toLowerCase();
+            return titleA.localeCompare(titleB);
+        } else if (sortType === 'rating') {
+            const ratingA = parseInt(a.querySelector('.rating-input')?.value || '0');
+            const ratingB = parseInt(b.querySelector('.rating-input')?.value || '0');
+            return ratingB - ratingA; // Descending
+        }
+        return 0;
+    });
+    
+    // Re-append in sorted order
+    videos.forEach(video => videoList.appendChild(video));
+    
+    // Update cache
+    cacheVideoElements();
+}
+
+// ================================================
+// RATING UPDATE
+// ================================================
+
+async function updateRating(entryId, newRating) {
+    const playlistId = getCurrentPlaylistId();
+    if (!playlistId) return;
+    
+    try {
+        const response = await fetch(`/api/playlists/${playlistId}/songs/${entryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating: parseInt(newRating) })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update rating');
+        }
+        
+        console.log('Rating updated successfully');
+    } catch (error) {
+        console.error('Error updating rating:', error);
+        alert('Failed to update rating');
+    }
+}
+
+// ================================================
+// VIDEO REMOVAL
+// ================================================
+
+async function removeVideo(entryId) {
     if (!confirm('Are you sure you want to remove this video?')) {
         return;
     }
-
-    const success = await PlaylistApi.removeSongFromPlaylist(
-        PlaylistState.currentPlaylist.id,
-        entryId
-    );
-
-    if (!success) {
-        alert('Failed to delete video');
-        return;
+    
+    const playlistId = getCurrentPlaylistId();
+    if (!playlistId) return;
+    
+    try {
+        const response = await fetch(`/api/playlists/${playlistId}/songs/${entryId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to remove video');
+        }
+        
+        // Remove from DOM
+        const videoItem = document.querySelector(`.video-item[data-entry-id="${entryId}"]`);
+        if (videoItem) {
+            videoItem.remove();
+        }
+        
+        // Update cache
+        cacheVideoElements();
+        
+        // Reload page to reflect changes
+        window.location.reload();
+    } catch (error) {
+        console.error('Error removing video:', error);
+        alert('Failed to remove video');
     }
-
-    // Handle player queue adjustment
-    PlaylistPlayer.handleVideoDeleted(entryId);
-
-    // Remove from local state
-    PlaylistState.selectedPlaylistVideos = PlaylistState.selectedPlaylistVideos.filter(
-        v => v.entryId !== entryId
-    );
-    PlaylistState.currentPlaylist.songs = PlaylistState.currentPlaylist.songs.filter(
-        s => s.entryId !== entryId
-    );
-
-    renderVideoList();
 }
 
-
 // ================================================
-// PLAYLIST CRUD OPERATIONS
+// PLAYLIST MANAGEMENT
 // ================================================
 
-/**
- * Create a new playlist
- */
+function getCurrentPlaylistId() {
+    const deleteBtn = document.getElementById('delete-playlist-btn');
+    return deleteBtn ? deleteBtn.dataset.playlistId : null;
+}
+
 async function createPlaylist() {
     const nameInput = document.getElementById('playlist-name');
     const name = nameInput.value.trim();
     
-    if (!name) return;
-
-    const newPlaylist = await PlaylistApi.createPlaylist(name, PlaylistState.currUsername);
-    
-    if (!newPlaylist) {
-        alert('Failed to create playlist');
+    if (!name) {
+        alert('Please enter a playlist name');
         return;
     }
-
-    // Update state and UI
-    PlaylistState.allPlaylists.push(newPlaylist);
-    PlaylistUI.renderPlaylistSidebar();
-
-    // Close modal
-    const modalEl = document.getElementById('newPlaylistModal');
-    const modal = bootstrap.Modal.getInstance(modalEl);
-    modal.hide();
-    nameInput.value = '';
-
-    // Select the new playlist
-    handlePlaylistSelect(newPlaylist.id, false);
+    
+    const currUsername = sessionStorage.getItem('currUsername');
+    
+    try {
+        const response = await fetch('/api/playlists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, username: currUsername })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to create playlist');
+        }
+        
+        const newPlaylist = await response.json();
+        
+        // Close modal
+        const modalEl = document.getElementById('newPlaylistModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Redirect to new playlist
+        window.location.href = `/playlists?id=${newPlaylist.id}`;
+    } catch (error) {
+        console.error('Error creating playlist:', error);
+        alert('Failed to create playlist');
+    }
 }
 
-/**
- * Delete the currently selected playlist
- */
-async function deleteCurrentPlaylist() {
+async function deletePlaylist() {
+    const playlistId = getCurrentPlaylistId();
+    if (!playlistId) return;
+    
     if (!confirm('Are you sure you want to delete this entire playlist?')) {
         return;
     }
-
-    const success = await PlaylistApi.deletePlaylist(PlaylistState.currentPlaylist.id);
     
-    if (!success) {
+    try {
+        const response = await fetch(`/api/playlists/${playlistId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete playlist');
+        }
+        
+        // Redirect to playlists page
+        window.location.href = '/playlists';
+    } catch (error) {
+        console.error('Error deleting playlist:', error);
         alert('Failed to delete playlist');
-        return;
-    }
-
-    // Remove from local state
-    PlaylistState.allPlaylists = PlaylistState.allPlaylists.filter(
-        p => p.id !== PlaylistState.currentPlaylist.id
-    );
-    PlaylistState.currentPlaylist = null;
-
-    // Update UI
-    PlaylistUI.renderPlaylistSidebar();
-
-    if (PlaylistState.allPlaylists.length > 0) {
-        handlePlaylistSelect(PlaylistState.allPlaylists[0].id, false);
-    } else {
-        PlaylistUI.showNoPlaylistSelected();
-        clearUrlPlaylistId();
     }
 }
 
-
 // ================================================
-// EVENT LISTENERS SETUP
+// EVENT LISTENERS
 // ================================================
 
-/**
- * Setup all event listeners for the page
- */
 function setupEventListeners() {
-    // Playlist management
-    document.getElementById('create-playlist-btn').addEventListener('click', createPlaylist);
-    document.getElementById('delete-playlist-btn').addEventListener('click', deleteCurrentPlaylist);
-
     // Playback controls
-    document.getElementById('start-over-btn').addEventListener('click', () => {
-        PlaylistPlayer.startFromBeginning();
-    });
-
-    document.getElementById('resume-btn').addEventListener('click', () => {
-        PlaylistPlayer.resumePlayback();
-    });
-
-    document.getElementById('close-player-btn').addEventListener('click', () => {
-        PlaylistPlayer.closePlayer();
-    });
-
-    document.getElementById('prev-video-btn').addEventListener('click', () => {
-        PlaylistPlayer.playPreviousVideo();
-    });
-
-    document.getElementById('next-video-btn').addEventListener('click', () => {
-        PlaylistPlayer.playNextVideo();
-    });
-
+    const startOverBtn = document.getElementById('start-over-btn');
+    if (startOverBtn) {
+        startOverBtn.addEventListener('click', startPlayback);
+    }
+    
+    const resumeBtn = document.getElementById('resume-btn');
+    if (resumeBtn) {
+        resumeBtn.addEventListener('click', resumePlayback);
+    }
+    
+    const closePlayerBtn = document.getElementById('close-player-btn');
+    if (closePlayerBtn) {
+        closePlayerBtn.addEventListener('click', closePlayer);
+    }
+    
+    const prevBtn = document.getElementById('prev-video-btn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', playPreviousVideo);
+    }
+    
+    const nextBtn = document.getElementById('next-video-btn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', playNextVideo);
+    }
+    
+    // Playlist management
+    const createBtn = document.getElementById('create-playlist-btn');
+    if (createBtn) {
+        createBtn.addEventListener('click', createPlaylist);
+    }
+    
+    const deleteBtn = document.getElementById('delete-playlist-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', deletePlaylist);
+    }
+    
     // Filtering
-    document.getElementById('filter-input').addEventListener('input', renderVideoList);
-
+    const filterInput = document.getElementById('filter-input');
+    if (filterInput) {
+        filterInput.addEventListener('input', filterVideos);
+    }
+    
     // Sorting
     document.querySelectorAll('.sort-option').forEach(option => {
         option.addEventListener('click', (e) => {
             e.preventDefault();
             const sortType = e.target.dataset.sort;
             sortVideos(sortType);
-            renderVideoList();
         });
     });
+    
+    // Rating inputs (event delegation)
+    const videoList = document.getElementById('video-list');
+    if (videoList) {
+        videoList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('rating-input')) {
+                const entryId = e.target.dataset.entryId;
+                const newRating = e.target.value;
+                if (entryId && newRating) {
+                    updateRating(entryId, newRating);
+                }
+            }
+        });
+    }
+    
+    // Remove video buttons (event delegation)
+    if (videoList) {
+        videoList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-video-btn') || 
+                e.target.closest('.remove-video-btn')) {
+                const btn = e.target.classList.contains('remove-video-btn') ? 
+                    e.target : e.target.closest('.remove-video-btn');
+                const entryId = btn.dataset.entryId;
+                if (entryId) {
+                    removeVideo(entryId);
+                }
+            }
+        });
+    }
 }

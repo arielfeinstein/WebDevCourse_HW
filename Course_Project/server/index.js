@@ -4,6 +4,7 @@ const express = require('express');
 const path = require('path');
 const apiRoutes = require('./routes/api');
 const searchController = require('./controllers/searchController');
+const playlistController = require('./controllers/playlistController');
 
 // load environment variables
 const apiKey = process.env.API_KEY;
@@ -40,9 +41,7 @@ app.get('/register', (req, res) => {
 
 app.get('/search', searchController.renderSearchPage);
 
-app.get('/playlists', (req, res) => {
-  res.render('playlists/playlists');
-});
+app.get('/playlists', playlistController.renderPlaylistsPage);
 
 // Start the server
 app.listen(PORT, () => {
