@@ -3,7 +3,9 @@
  * Centralizes all YouTube API interactions
  */
 
-const API_KEY = process.env.API_KEY;
+const config = require('../config/envConfig');
+
+const API_KEY = config.youtubeApiKey;
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
 /**

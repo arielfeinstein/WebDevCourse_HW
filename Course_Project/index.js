@@ -1,14 +1,13 @@
 // imports
-require('dotenv').config({ path: __dirname + '/.env' });
+const config = require('./config/envConfig');
 const express = require('express');
 const path = require('path');
 const apiRoutes = require('./routes/api');
 const searchController = require('./controllers/searchController');
 const playlistController = require('./controllers/playlistController');
 
-// load environment variables
-const apiKey = process.env.API_KEY;
-const PORT = process.env.PORT || 3000;
+// load environment variables from config
+const PORT = config.port;
 
 // init express app and set port
 const app = express();
