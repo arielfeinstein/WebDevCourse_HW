@@ -48,7 +48,7 @@ async function handleSubmit(e) {
     } catch (err) {
       // sessionStorage might be disabled; ignore failure and continue
     }
-    window.location.href = 'search.html';
+    window.location.href = '/search';
   } catch (err) {
     showAlert('Network error: ' + (err.message || err), 'danger');
   }
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // If a user is already logged in (stored in sessionStorage, redirect to search
   const existingUser = sessionStorage.getItem('currUsername');
   if (existingUser) {
-    window.location.href = 'search.html';
+    window.location.href = '/search';
     return;
   }
   const form = document.querySelector('form');
@@ -72,7 +72,7 @@ window.addEventListener('pageshow', (event) => {
     // If a user is already logged in (stored in sessionStorage, redirect to search
     const existingUser = sessionStorage.getItem('currUsername');
     if (existingUser) {
-      window.location.href = 'search.html';
+      window.location.href = '/search';
       return;
     }
   }

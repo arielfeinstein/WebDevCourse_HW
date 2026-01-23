@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const currUsername = sessionStorage.getItem('currUsername');
     if (!currUsername) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
     }
     PlaylistState.currUsername = currUsername;

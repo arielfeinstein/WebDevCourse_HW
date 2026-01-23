@@ -7,7 +7,7 @@ window.addEventListener('pageshow', (event) => {
         // If a user is already logged in sessionStorage, redirect to search
         const existingUser = sessionStorage.getItem('currUsername');
         if (existingUser) {
-            window.location.href = 'search.html';
+            window.location.href = '/search';
             return;
         }
     }
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // If a user is already logged in sessionStorage, redirect to search
     const existingUser = sessionStorage.getItem('currUsername');
     if (existingUser) {
-        window.location.href = 'search.html';
+        window.location.href = '/search';
         return;
     }
 

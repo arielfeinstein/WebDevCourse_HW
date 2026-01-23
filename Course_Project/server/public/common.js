@@ -4,5 +4,5 @@ function logout() {
     } catch (e) {
         console.warn('Could not clear sessionStorage', e);
     }
-    window.location.href = '/index.html';
+    window.location.href = '/';
 }

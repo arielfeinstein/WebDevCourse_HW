@@ -2,6 +2,21 @@
   {
     "id": "1766493700008texcoc7s8",
     "name": "playlist 1",
-    "songs": []
+    "songs": [
+      {
+        "entryId": "1769151619985v9ro4hojv",
+        "youtubeId": "S19UcWdOA-I"
+      }
+    ]
+  },
+  {
+    "id": "1769151628351qt5kqiqvg",
+    "name": "playlist 2",
+    "songs": [
+      {
+        "entryId": "1769151628356aw1rpdmrj",
+        "youtubeId": "5GLLHUs4DOw"
+      }
+    ]
   }
 ]

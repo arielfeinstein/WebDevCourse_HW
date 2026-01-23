@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ensure user is authenticated (using sessionStorage). Redirect unsigned users to login.
     const storedUser = sessionStorage.getItem('currUsername');
     if (!storedUser) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
     }
 
@@ -320,7 +320,7 @@ function showConfirmation(playlistId, playlistName) {
     const viewPlaylistLink = document.getElementById('view-playlist-link');
 
     confirmationMsg.textContent = `"${currentVideoTitle}" added to "${playlistName}"!`;
-    viewPlaylistLink.href = `playlists/playlists.html?id=${playlistId}`;
+    viewPlaylistLink.href = `/playlists?id=${playlistId}`;
 
     CONFIRMATION_MODAL.show();
 }

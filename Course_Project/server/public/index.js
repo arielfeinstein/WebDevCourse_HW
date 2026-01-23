@@ -2,9 +2,9 @@ const studentDetails = {
     name: "Ariel Feinstein",
     id: "123455678",
     githubRepo: "https://github.com/arielfeinstein/WebDevCourse_HW/tree/main/Client_Project",
-    deployedLink: "https://webdevcourse-hw.onrender.com/index.html",
-    linkToLogin: "/login.html",
-    linkToRegister: "/register.html",
+    deployedLink: "https://webdevcourse-hw.onrender.com/",
+    linkToLogin: "/login",
+    linkToRegister: "/register",
     notes: [
         "The id isn't real, please check the moodle submission for the actual id.",
         "When clicking on the deployed link, it may take some time to load as the server is hosted on a free tier service."
