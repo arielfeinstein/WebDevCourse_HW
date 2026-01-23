@@ -93,7 +93,7 @@ exports.renderPlaylistsPage = async (req, res) => {
         error = err.message || 'An error occurred while loading playlists';
     }
 
-    res.render('playlists/playlists', {
+    res.render('playlists', {
         playlists,
         selectedPlaylist,
         videos: videosWithDetails,
