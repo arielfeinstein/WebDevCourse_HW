@@ -1,6 +1,4 @@
 // DOM elements (assigned once DOM is loaded)
-let RESULTS_CONTAINER;
-let SEARCH_INPUT;
 let WELCOME_MSG;
 let PLAYER_MODAL_EL;
 let PLAYER_MODAL;
@@ -40,24 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userImgEl && currUserImg) {
         userImgEl.src = currUserImg;
     }
-
-    // 2. URL Synchronization & Initial Search
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('q');
-    if (query) {
-        SEARCH_INPUT.value = query;
-        performSearch(query);
-    }
-
-    // Search Form Submission
-    document.getElementById('search-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const newQuery = SEARCH_INPUT.value.trim();
-        if (newQuery) {
-            updateQueryString(newQuery);
-            performSearch(newQuery);
-        }
-    });
     
     // Clear iframe when modal is closed to stop playback
     PLAYER_MODAL_EL.addEventListener('hidden.bs.modal', () => {
@@ -72,11 +52,31 @@ document.addEventListener('DOMContentLoaded', () => {
     FAVORITES_MODAL_EL.addEventListener('hidden.bs.modal', () => {
         NEW_PLAYLIST_NAME_INPUT.value = '';
     });
+
+    // Event delegation for video cards (play video when clicking image or title)
+    document.addEventListener('click', (e) => {
+        // Play video when clicking image or title
+        if (e.target.classList.contains('video-card-img') || e.target.classList.contains('video-title')) {
+            const videoId = e.target.dataset.videoId;
+            const videoTitle = e.target.dataset.videoTitle;
+            if (videoId && videoTitle) {
+                playVideo(videoId, videoTitle);
+            }
+        }
+        
+        // Add to playlist when clicking the button
+        if (e.target.closest('.add-to-playlist-btn')) {
+            const button = e.target.closest('.add-to-playlist-btn');
+            const videoId = button.dataset.videoId;
+            const videoTitle = button.dataset.videoTitle;
+            if (videoId && videoTitle) {
+                addToFavorites(videoId, videoTitle);
+            }
+        }
+    });
 });
 
 function initializeDOMElements() {
-    RESULTS_CONTAINER = document.getElementById('results-container');
-    SEARCH_INPUT = document.getElementById('search-input');
     WELCOME_MSG = document.getElementById('welcome-msg');
     PLAYER_MODAL_EL = document.getElementById('playerModal');
     PLAYER_IFRAME = document.getElementById('player-iframe');
@@ -93,127 +93,28 @@ function initializeDOMElements() {
     CONFIRMATION_MODAL = new bootstrap.Modal(CONFIRMATION_MODAL_EL);
 }
 
-function updateQueryString(query) {
-    const url = new URL(window.location);
-    url.searchParams.set('q', query);
-    window.history.pushState({}, '', url);
-}
-
-async function performSearch(query) {
-    RESULTS_CONTAINER.innerHTML = '<div class="col-12 text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-
-    try {
-        let items = [];
-        
-        // 1. Search for videos
-            const searchRes = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}&maxResults=9`);
-            if (!searchRes.ok) throw new Error(`YouTube Search API failed: ${searchRes.statusText}`);
-            const searchData = await searchRes.json();
-            
-            if (!searchData.items || searchData.items.length === 0) {
-                await renderResults([]);
-                return;
-            }
-
-            const videoIds = searchData.items.map(item => item.id.videoId).join(',');
-            
-            // 2. Get Video Details (Duration, View Count)
-            const detailsRes = await fetch(`/api/youtube/videos?part=contentDetails,statistics&id=${videoIds}`);
-            if (!detailsRes.ok) throw new Error(`YouTube Videos API failed: ${detailsRes.statusText}`);
-            const detailsData = await detailsRes.json();
-            
-            // Merge data
-            items = searchData.items.map(item => {
-                const detail = detailsData.items.find(d => d.id === item.id.videoId);
-                return {
-                    ...item,
-                    contentDetails: detail ? detail.contentDetails : {},
-                    statistics: detail ? detail.statistics : {}
-                };
-            });
-
-        await renderResults(items);
-
-    } catch (error) {
-        console.error('Search error:', error);
-        RESULTS_CONTAINER.innerHTML = `<div class="col-12 text-center text-danger">Error occurred while searching: ${error.message}</div>`;
-    }
-}
-
-async function renderResults(items) {
-    const username = sessionStorage.getItem('currUsername');
-    let existingIds = new Set();
-    if (username) {
-        try {
-            const res = await fetch(`/api/users/${username}/playlists`);
-            if (res.ok) {
-                const playlists = await res.json();
-                playlists.forEach(playlist => {
-                    playlist.songs.forEach(song => {
-                        existingIds.add(song.youtubeId);
-                    });
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching playlists:', error);
-        }
-    }
-    RESULTS_CONTAINER.innerHTML = '';
-    
-    if (items.length === 0) {
-        RESULTS_CONTAINER.innerHTML = '<div class="col-12 text-center">No results found.</div>';
-        return;
-    }
-
-    items.forEach(item => {
-        const videoId = item.id.videoId;
-        const title = item.snippet.title;
-        const thumbnailUrl = item.snippet.thumbnails.high.url;
-        const duration = parseDuration(item.contentDetails.duration);
-        const viewCount = parseInt(item.statistics.viewCount || '0').toLocaleString();
-
-        const isAdded = existingIds.has(videoId);
-        const buttonHtml = isAdded ?
-            `<button class="btn btn-success btn-sm" disabled><i class="bi bi-check-circle"></i> Added</button>` :
-            `<button class="btn btn-outline-danger btn-sm" onclick="addToFavorites('${videoId}', event)">Add to Favorites</button>`;
-
-        const col = document.createElement('div');
-        col.className = 'col';
-        col.innerHTML = `
-            <div class="card h-100 shadow-sm">
-                <img src="${thumbnailUrl}" class="card-img-top video-card-img" alt="${title}" onclick="playVideo('${videoId}', '${title.replace(/'/g, "\\'")}')">
-                <div class="card-body d-flex flex-column">
-                    <h5 class="card-title video-title" title="${title}" onclick="playVideo('${videoId}', '${title.replace(/'/g, "\\'")}')">${title}</h5>
-                    <div class="mt-auto">
-                        <p class="card-text text-muted small mb-2">
-                            <i class="bi bi-clock"></i> ${duration} &bull; ${viewCount} views
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <button class="btn btn-outline-primary btn-sm" onclick="playVideo('${videoId}', '${title.replace(/'/g, "\\'")}')">
-                                Play
-                            </button>
-                            ${buttonHtml}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        RESULTS_CONTAINER.appendChild(col);
-    });
-}
-
+/**
+ * Play video in modal (called from onclick in template)
+ * @param {string} videoId - YouTube video ID
+ * @param {string} title - Video title
+ */
 function playVideo(videoId, title) {
-    PLAYER_MODAL_LABEL.textContent = title;
     PLAYER_IFRAME.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    PLAYER_MODAL_LABEL.textContent = title;
     PLAYER_MODAL.show();
 }
 
-function addToFavorites(videoId, evt) {
+/**
+ * Add video to favorites (called from onclick in template)
+ * @param {string} videoId - YouTube video ID
+ * @param {string} title - Video title
+ */
+async function addToFavorites(videoId, title) {
     currentVideoId = videoId;
-    currentVideoTitle = evt.target.closest('.card-body').querySelector('.card-title').textContent;
+    currentVideoTitle = title;
     
     // Load playlists and show modal
-    loadAndShowPlaylistsModal();
+    await loadAndShowPlaylistsModal();
 }
 
 async function loadAndShowPlaylistsModal() {
@@ -236,10 +137,10 @@ async function loadAndShowPlaylistsModal() {
                 <div class="card mb-2">
                     <div class="card-body d-flex justify-content-between align-items-center p-3">
                         <div>
-                            <h6 class="card-title mb-0">${playlist.name}</h6>
+                            <h6 class="card-title mb-0">${escapeHtml(playlist.name)}</h6>
                             <small class="text-muted">${playlist.songs ? playlist.songs.length : 0} songs</small>
                         </div>
-                        <button class="btn btn-sm btn-primary" onclick="addVideoToPlaylist('${playlist.id}', '${playlist.name}')">Add</button>
+                        <button class="btn btn-sm btn-primary" onclick="addVideoToPlaylist('${playlist.id}', '${escapeHtml(playlist.name)}')">Add</button>
                     </div>
                 </div>
             `).join('');
@@ -304,10 +205,13 @@ async function addVideoToPlaylist(playlistId, playlistName) {
         FAVORITES_MODAL.hide();
         showConfirmation(playlistId, playlistName);
         
-        // Update the button state in the search results to "Added"
-        const button = document.querySelector(`button[onclick*="addToFavorites('${currentVideoId}'"]`);
+        // Update the button state in the search results to "Added" 
+        // Find the button using data attribute
+        const button = document.querySelector(`.add-to-playlist-btn[data-video-id="${currentVideoId}"]`);
         if (button) {
-            button.outerHTML = `<button class="btn btn-success btn-sm" disabled><i class="bi bi-check-circle"></i> Added</button>`;
+            button.disabled = true;
+            button.className = 'btn btn-success btn-sm w-100';
+            button.innerHTML = '<i class="bi bi-check-circle"></i> Added';
         }
     } catch (error) {
         console.error('Error adding video to playlist:', error);
@@ -325,22 +229,8 @@ function showConfirmation(playlistId, playlistName) {
     CONFIRMATION_MODAL.show();
 }
 
-function parseDuration(duration) {
-    if (!duration) return '0:00';
-    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-    if (!match) return '0:00';
-    
-    const hours = (match[1] || '').replace('H', '');
-    const minutes = (match[2] || '').replace('M', '');
-    const seconds = (match[3] || '').replace('S', '');
-
-    let result = '';
-    if (hours) {
-        result += hours + ':';
-        result += (minutes || '0').padStart(2, '0') + ':';
-    } else {
-        result += (minutes || '0') + ':';
-    }
-    result += (seconds || '0').padStart(2, '0');
-    return result;
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }

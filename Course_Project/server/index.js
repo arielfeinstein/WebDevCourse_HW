@@ -3,6 +3,7 @@ require('dotenv').config({ path: __dirname + '/.env' });
 const express = require('express');
 const path = require('path');
 const apiRoutes = require('./routes/api');
+const searchController = require('./controllers/searchController');
 
 // load environment variables
 const apiKey = process.env.API_KEY;
@@ -37,9 +38,7 @@ app.get('/register', (req, res) => {
   res.render('register');
 });
 
-app.get('/search', (req, res) => {
-  res.render('search');
-});
+app.get('/search', searchController.renderSearchPage);
 
 app.get('/playlists', (req, res) => {
   res.render('playlists/playlists');
