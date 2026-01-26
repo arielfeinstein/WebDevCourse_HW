@@ -5,3 +5,4 @@ node_modules/
 /Client_Project/hw-steps.txt
 .github/
 Client_Project/server/data/
+data/
