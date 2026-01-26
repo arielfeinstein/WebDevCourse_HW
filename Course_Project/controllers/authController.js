@@ -24,79 +24,39 @@ Notes:
 - Validation helpers in this controller expect `username`, `email`, `firstName`, `imgUrl`, and `password` to be present when registering.
 */
 
-const { readUsersFromJson, writeUsersToJson } = require('../utils/userHelpers');
-
-const MIN_USERNAME_LENGTH = 6;
-const MIN_PASSWORD_LENGTH = 6;
-
-// Helper: generate a stable-unique id for new users
-function generateId() {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-}
+const authService = require('../services/authService');
 
 exports.register = (req, res) => {
-    const { username, email, firstName, imgUrl, password, passwordConfirmation } = req.body;
+    const result = authService.registerUser(req.body);
 
-    // data validation
-    let {isUsernameOkay, usernameStatusMsg} = validateUsername(username);
-    if (!isUsernameOkay) {
-        return res.status(400).json({ error: usernameStatusMsg });
+    if (!result.success) {
+        return res.status(400).json({ error: result.error });
     }
 
-    let {isEmailOkay, emailStatusMsg} = validateEmail(email);
-    if (!isEmailOkay) {
-        return res.status(400).json({ error: emailStatusMsg });
-    }
-
-    let {isPasswordOkay, passwordStatusMsg} = validatePassword(password, passwordConfirmation);
-    if (!isPasswordOkay) {
-        return res.status(400).json({ error: passwordStatusMsg });
-    }
-
-    let {isFirstNameOkay, firstNameStatusMsg} = validateFirstName(firstName);
-    if (!isFirstNameOkay) {
-        return res.status(400).json({ error: firstNameStatusMsg });
-    }
-
-    let {isImgUrlOkay, imgUrlStatusMsg} = validateImgUrl(imgUrl);
-    if (!isImgUrlOkay) {
-        return res.status(400).json({ error: imgUrlStatusMsg });
-    }
-
-    // all validations passed, add user to JSON "database"
-    addUserToJson({ username, email, firstName, imgUrl, password });
-
-    // respond with success
     res.status(201).json({ message: 'User registered successfully.' });
-}
+};
 
 exports.login = (req, res) => {
     const { username, password } = req.body;
 
-    const users = readUsersFromJson();
-    const user = users.find(u => u.username === username && u.password === password);
+    const result = authService.authenticateUser(username, password);
 
-    if (!user) {
-        return res.status(401).json({ error: 'Invalid username or password.' });
+    if (!result.success) {
+        return res.status(401).json({ error: result.error });
     }
 
     // Set session with user data
-    req.session.user = {
-        id: user.id,
-        username: user.username,
-        firstName: user.firstName,
-        imgUrl: user.imgUrl
-    };
+    req.session.user = result.user;
 
     res.status(200).json({ 
         message: 'Login successful.',
         user: {
-            username: user.username,
-            firstName: user.firstName,
-            imgUrl: user.imgUrl
+            username: result.user.username,
+            firstName: result.user.firstName,
+            imgUrl: result.user.imgUrl
         }
     });
-}
+};
 
 exports.logout = (req, res) => {
     req.session.destroy((err) => {
@@ -105,121 +65,19 @@ exports.logout = (req, res) => {
         }
         res.status(200).json({ message: 'Logged out successfully' });
     });
-}
+};
 
 // return user's image URL by username
 exports.getUserImageUrl = (req, res) => {
     const username = req.params && req.params.username;
 
-    if (!username) {
-        return res.status(400).json({ error: 'Username is required.' });
+    const result = authService.getUserImageUrl(username);
+
+    if (!result.success) {
+        const statusCode = result.error === 'Username is required.' ? 400 : 404;
+        return res.status(statusCode).json({ error: result.error });
     }
 
-    const users = readUsersFromJson();
-    const user = users.find(u => u.username === username);
-
-    if (!user) {
-        return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const imageUrl = user.imgUrl || '';
-    return res.status(200).json({ imageUrl });
-}
-
-// Helper functions
-
-function addUserToJson({ username, email, firstName, imgUrl, password }) {
-    const users = readUsersFromJson();
-
-    const newUser = {
-        id: generateId(),
-        username,
-        email,
-        firstName,
-        imgUrl,
-        password,
-        playlistIDs: []
-    };
-
-    users.push(newUser);
-
-    writeUsersToJson(users);
-
-    return newUser;
-}
-
-function validateUsername(username) {
-    if (!username || typeof username !== 'string' || username.length < MIN_USERNAME_LENGTH) {
-        return { isUsernameOkay: false, usernameStatusMsg: `Username must be at least ${MIN_USERNAME_LENGTH} characters long.` };
-    }
-
-    const users = readUsersFromJson();
-    const usernames = users.map(user => user.username);
-    
-    if (usernames.includes(username)) {
-        return { isUsernameOkay: false, usernameStatusMsg: 'Username is already taken.' };
-    }
-
-    return { isUsernameOkay: true, usernameStatusMsg: 'Valid username.' };
-}
-
-function validateEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || typeof email !== 'string' || !emailRegex.test(email)) {
-        return { isEmailOkay: false, emailStatusMsg: 'Invalid email format.' };
-    }
-
-    const users = readUsersFromJson();
-    const emails = users.map(user => user.email);
-    
-    if (emails.includes(email)) {
-        return { isEmailOkay: false, emailStatusMsg: 'Email is already registered.' };
-    }
-
-    return { isEmailOkay: true, emailStatusMsg: 'Valid email.' };
-}
-
-function validatePassword(password, passwordConfirmation) {
-    if (!password || typeof password !== 'string' || password.length < 6) {
-        return { isPasswordOkay: false, passwordStatusMsg: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` };
-    }
-
-    // atleast one letter and one non letter
-    const letterRegex = /[A-Za-z]/;
-    const nonLetterRegex = /[^A-Za-z]/;
-
-    if (!letterRegex.test(password) || !nonLetterRegex.test(password)) {
-        return { isPasswordOkay: false, passwordStatusMsg: 'Password must contain at least one letter and one non-letter character.' };
-    }
-
-    return { isPasswordOkay: true, passwordStatusMsg: 'Valid password.' };
-}
-
-function validateFirstName(firstName) {
-    if (!firstName || typeof firstName !== 'string' || firstName.trim() === '') {
-        return { isFirstNameOkay: false, firstNameStatusMsg: 'First name cannot be empty.' };
-    }
-
-    // no digits allowed
-    const digitRegex = /\d/;
-    if (digitRegex.test(firstName)) {
-        return { isFirstNameOkay: false, firstNameStatusMsg: 'First name cannot contain digits.' };
-    }
-    
-    return { isFirstNameOkay: true, firstNameStatusMsg: 'Valid first name.' };
-}
-
-function validateImgUrl(imgUrl) {
-    if (!imgUrl || typeof imgUrl !== 'string' || imgUrl.trim() === '') {
-        return { isImgUrlOkay: false, imgUrlStatusMsg: 'Image URL cannot be empty.' };
-    }
-
-    try {
-        new URL(imgUrl);
-    } catch (e) {
-        return { isImgUrlOkay: false, imgUrlStatusMsg: 'Invalid image URL format.' };
-    }
-
-    return { isImgUrlOkay: true, imgUrlStatusMsg: 'Valid image URL.' };
-}
+    return res.status(200).json({ imageUrl: result.imageUrl });
+};
 
