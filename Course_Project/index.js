@@ -36,16 +36,20 @@ app.get('/', (req, res) => {
   res.render('index');
 });
 
+// Redirect authenticated users away from login/register pages
 app.get('/login', redirectIfAuth, (req, res) => {
   res.render('login');
 });
 
+// Redirect authenticated users away from login/register pages
 app.get('/register', redirectIfAuth, (req, res) => {
   res.render('register');
 });
 
+// Protected route: search page
 app.get('/search', requireAuth, searchController.renderSearchPage);
 
+// Protected route: playlists page
 app.get('/playlists', requireAuth, playlistController.renderPlaylistsPage);
 
 // Start the server
