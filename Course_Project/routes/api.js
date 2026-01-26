@@ -27,6 +27,16 @@ router.post('/register', (req, res, next) => {
 	res.status(501).json({ error: 'Not implemented: authController.register' });
 });
 
+// POST /api/logout
+// Logs out the current user by destroying their session.
+// Returns 200 on success.
+router.post('/logout', (req, res) => {
+	if (authController && typeof authController.logout === 'function') {
+		return authController.logout(req, res);
+	}
+	res.status(501).json({ error: 'Not implemented: authController.logout' });
+});
+
 // GET /api/users/:username/image
 // Returns the profile image URL (or image payload) for a given username.
 // Route param: `:username`. Returns 200 with { imageUrl: '...' } or

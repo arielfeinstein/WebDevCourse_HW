@@ -19,23 +19,21 @@ let player = null;
 let playbackQueue = [];
 let currentVideoIndex = 0;
 let allVideos = []; // Cache of all video elements for filtering/sorting
+// Current authenticated user (set by server in EJS template)
+const currentUser = window.currentUser;
 
 // ================================================
 // INITIALIZATION
 // ================================================
 
 document.addEventListener('DOMContentLoaded', async function() {
-    const currUsername = sessionStorage.getItem('currUsername');
-    
     // Ensure user is logged in
-    if (!currUsername) {
-        window.location.href = '/login';
+    if (!currentUser) {
+        // Not authenticated - shouldn't happen as server protects route
+        window.location.href = '/';
         return;
     }
 
-    // Update welcome message and user image
-    updateUserDisplay(currUsername);
-    
     // Cache all videos for filtering/sorting
     cacheVideoElements();
     
@@ -51,20 +49,6 @@ window.onYouTubeIframeAPIReady = function() {
 // ================================================
 // USER DISPLAY
 // ================================================
-
-async function updateUserDisplay(username) {
-    document.getElementById('welcome-msg').textContent = `Hello, ${username}`;
-    
-    try {
-        const response = await fetch(`/api/users/${username}/image`);
-        const data = await response.json();
-        if (data.imageUrl) {
-            document.getElementById('user-img').src = data.imageUrl;
-        }
-    } catch (error) {
-        console.error('Error fetching user image:', error);
-    }
-}
 
 // ================================================
 // VIDEO CACHING
@@ -313,13 +297,16 @@ async function createPlaylist() {
         return;
     }
     
-    const currUsername = sessionStorage.getItem('currUsername');
+    if (!currentUser) {
+        alert('Please log in to create playlists');
+        return;
+    }
     
     try {
         const response = await fetch('/api/playlists', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, username: currUsername })
+            body: JSON.stringify({ name, username: currentUser.username })
         });
         
         if (!response.ok) {

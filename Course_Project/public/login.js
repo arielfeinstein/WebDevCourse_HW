@@ -29,25 +29,7 @@ async function handleSubmit(e) {
       showAlert(msg, 'danger');
       return;
     }
-    // save username to session storage and redirect to search.html
-    try {
-      // save username
-      sessionStorage.setItem('currUsername', username);
-      // fetch user's image URL from server and save it too (best-effort)
-      try {
-        const imgRes = await fetch(`/api/users/${encodeURIComponent(username)}/image`);
-        if (imgRes.ok) {
-          const imgData = await imgRes.json().catch(() => ({}));
-          if (imgData && imgData.imageUrl) {
-            sessionStorage.setItem('currUserImg', imgData.imageUrl);
-          }
-        }
-      } catch (err) {
-        // ignore image fetch errors and continue
-      }
-    } catch (err) {
-      // sessionStorage might be disabled; ignore failure and continue
-    }
+    // Server sets session cookie - redirect to search
     window.location.href = '/search';
   } catch (err) {
     showAlert('Network error: ' + (err.message || err), 'danger');
@@ -55,25 +37,7 @@ async function handleSubmit(e) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // If a user is already logged in (stored in sessionStorage, redirect to search
-  const existingUser = sessionStorage.getItem('currUsername');
-  if (existingUser) {
-    window.location.href = '/search';
-    return;
-  }
   const form = document.querySelector('form');
   if (!form) return;
   form.addEventListener('submit', handleSubmit);
-});
-
-// Handle page show event to manage bfcache scenarios (e.g., back button)
-window.addEventListener('pageshow', (event) => {
-  if (event.persisted) {
-    // If a user is already logged in (stored in sessionStorage, redirect to search
-    const existingUser = sessionStorage.getItem('currUsername');
-    if (existingUser) {
-      window.location.href = '/search';
-      return;
-    }
-  }
 });

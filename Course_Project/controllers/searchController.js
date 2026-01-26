@@ -21,6 +21,7 @@ exports.renderSearchPage = async (req, res) => {
     res.render('search', {
         query: query || '',
         results: searchResults,
-        error: error
+        error: error,
+        user: req.session.user
     });
 };

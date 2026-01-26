@@ -97,7 +97,8 @@ exports.renderPlaylistsPage = async (req, res) => {
         playlists,
         selectedPlaylist,
         videos: videosWithDetails,
-        error
+        error,
+        user: req.session.user
     });
 };
 

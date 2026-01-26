@@ -18,26 +18,18 @@ let CONFIRMATION_MODAL;
 let currentVideoId = null;
 let currentVideoTitle = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Ensure user is authenticated (using sessionStorage). Redirect unsigned users to login.
-    const storedUser = sessionStorage.getItem('currUsername');
-    if (!storedUser) {
-        window.location.href = '/login';
+// Store current user data (set by server in EJS template)
+const currentUser = window.currentUser;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!currentUser) {
+        // Not authenticated - shouldn't happen as server protects route
+        window.location.href = '/';
         return;
     }
 
     // Assign DOM elements
     initializeDOMElements();
-
-    // 1. User Authentication Display (now that we have username)
-    const username = storedUser;
-    WELCOME_MSG.textContent = `Hello ${username}`;
-    // Set profile image from storage if available
-    const userImgEl = document.getElementById('user-img');
-    const currUserImg = sessionStorage.getItem('currUserImg') || localStorage.getItem('currUserImg');
-    if (userImgEl && currUserImg) {
-        userImgEl.src = currUserImg;
-    }
     
     // Clear iframe when modal is closed to stop playback
     PLAYER_MODAL_EL.addEventListener('hidden.bs.modal', () => {
@@ -118,14 +110,13 @@ async function addToFavorites(videoId, title) {
 }
 
 async function loadAndShowPlaylistsModal() {
-    const username = sessionStorage.getItem('currUsername');
-    if (!username) {
+    if (!currentUser) {
         alert('Please log in to add videos to playlists.');
         return;
     }
 
     try {
-        const res = await fetch(`/api/users/${username}/playlists`);
+        const res = await fetch(`/api/users/${currentUser.username}/playlists`);
         if (!res.ok) throw new Error('Failed to fetch playlists');
         const userPlaylists = await res.json();
 
@@ -158,10 +149,14 @@ async function loadAndShowPlaylistsModal() {
 
 async function handleCreateNewPlaylist() {
     const playlistName = NEW_PLAYLIST_NAME_INPUT.value.trim();
-    const username = sessionStorage.getItem('currUsername');
 
     if (!playlistName) {
         alert('Please enter a playlist name.');
+        return;
+    }
+
+    if (!currentUser) {
+        alert('Please log in to create playlists.');
         return;
     }
 
@@ -169,7 +164,7 @@ async function handleCreateNewPlaylist() {
         const res = await fetch('/api/playlists', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: playlistName, username })
+            body: JSON.stringify({ name: playlistName, username: currentUser.username })
         });
 
         if (!res.ok) {

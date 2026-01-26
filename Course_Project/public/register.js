@@ -1,26 +1,7 @@
 let submitBtn;
 let form;
 
-// Handle page show event to manage bfcache scenarios (e.g., back button)
-window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
-        // If a user is already logged in sessionStorage, redirect to search
-        const existingUser = sessionStorage.getItem('currUsername');
-        if (existingUser) {
-            window.location.href = '/search';
-            return;
-        }
-    }
-});
-
 document.addEventListener('DOMContentLoaded', () => {
-    // If a user is already logged in sessionStorage, redirect to search
-    const existingUser = sessionStorage.getItem('currUsername');
-    if (existingUser) {
-        window.location.href = '/search';
-        return;
-    }
-
     form = document.querySelector('form');
     if (!form) return;
 
@@ -28,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn = form.querySelector('button[type="submit"]');
 
     form.addEventListener('submit', handleSubmit);
-
 });
 
 async function handleSubmit(e) {
@@ -50,18 +30,9 @@ async function handleSubmit(e) {
         const { res, body } = await postRegister(payload);
 
         if (res.ok && res.status === 201) {
-            const msg = body.message || 'Registration successful.';
-            // save username to session storage and redirect to search.html
-            try {
-                // save username and image URL (best-effort)
-                sessionStorage.setItem('currUsername', payload.username || '');
-                if (payload.imgUrl) {
-                    sessionStorage.setItem('currUserImg', payload.imgUrl);
-                }
-            } catch (err) {
-                // ignore storage errors
-            }
-            window.location.href = 'search.html';
+            // Registration successful - redirect to login page
+            window.alert(body.message || 'Registration successful. Please login.');
+            window.location.href = '/login';
         } else {
             const errMsg = body.error || body.message || `${res.status} ${res.statusText}`;
             window.alert(`Registration failed: ${errMsg}`);

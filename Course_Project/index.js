@@ -5,6 +5,9 @@ const path = require('path');
 const apiRoutes = require('./routes/api');
 const searchController = require('./controllers/searchController');
 const playlistController = require('./controllers/playlistController');
+const sessionMiddleware = require('./config/session');
+const requireAuth = require('./middleware/requireAuth');
+const redirectIfAuth = require('./middleware/redirectIfAuth');
 
 // load environment variables from config
 const PORT = config.port;
@@ -22,6 +25,9 @@ app.use(express.json());
 // Serve static files (CSS, JS, images) from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Session management
+app.use(sessionMiddleware);
+
 // use custom API routes 
 app.use('/api', apiRoutes);
 
@@ -30,17 +36,17 @@ app.get('/', (req, res) => {
   res.render('index');
 });
 
-app.get('/login', (req, res) => {
+app.get('/login', redirectIfAuth, (req, res) => {
   res.render('login');
 });
 
-app.get('/register', (req, res) => {
+app.get('/register', redirectIfAuth, (req, res) => {
   res.render('register');
 });
 
-app.get('/search', searchController.renderSearchPage);
+app.get('/search', requireAuth, searchController.renderSearchPage);
 
-app.get('/playlists', playlistController.renderPlaylistsPage);
+app.get('/playlists', requireAuth, playlistController.renderPlaylistsPage);
 
 // Start the server
 app.listen(PORT, () => {

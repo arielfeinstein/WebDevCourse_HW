@@ -1,8 +1,11 @@
-function logout() {
+async function logout() {
     try {
-        sessionStorage.clear();
+        await fetch('/api/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
     } catch (e) {
-        console.warn('Could not clear sessionStorage', e);
+        console.warn('Could not logout from server', e);
     }
-    window.location.href = '/';
+    window.location.href = '/login';
 }

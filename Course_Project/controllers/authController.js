@@ -80,8 +80,31 @@ exports.login = (req, res) => {
         return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
-    // In a real application, you would generate and return a JWT or session here
-    res.status(200).json({ message: 'Login successful.' });
+    // Set session with user data
+    req.session.user = {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        imgUrl: user.imgUrl
+    };
+
+    res.status(200).json({ 
+        message: 'Login successful.',
+        user: {
+            username: user.username,
+            firstName: user.firstName,
+            imgUrl: user.imgUrl
+        }
+    });
+}
+
+exports.logout = (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Could not log out' });
+        }
+        res.status(200).json({ message: 'Logged out successfully' });
+    });
 }
 
 // return user's image URL by username
