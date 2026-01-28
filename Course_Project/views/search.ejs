@@ -32,7 +32,7 @@
                 <a href="/playlists" class="btn btn-outline-primary me-3">My Library</a>
                 <span class="me-3" id="welcome-msg">Hello <%= user.username %></span>
                 <!-- User Image Placeholder -->
-                <img src="<%= user.imgUrl || 'https://via.placeholder.com/40' %>" alt="User Image" class="rounded-circle" id="user-img" width="40" height="40">
+                <img src="<%= user.imgUrl ? '/assets/avatars/' + user.imgUrl : 'https://via.placeholder.com/40' %>" alt="User Image" class="rounded-circle" id="user-img" width="40" height="40">
                 <button class="btn btn-outline-danger ms-3" id="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -151,7 +151,7 @@
         window.currentUser = {
             username: '<%= user.username %>',
             firstName: '<%= user.firstName %>',
-            imgUrl: '<%= user.imgUrl || "" %>'
+            imgUrl: '<%= user.imgUrl && user.imgUrl.endsWith(".svg") ? "/assets/avatars/" + user.imgUrl : (user.imgUrl || "") %>'
         };
     </script>
     <script src="/common.js"></script>

@@ -197,6 +197,12 @@ function validateImgUrl(imgUrl) {
         return { isValid: false, message: 'Image URL cannot be empty.' };
     }
 
+    // Only accept SVG filenames for avatars
+    if (imgUrl.endsWith('.svg')) {
+        return { isValid: true, message: 'Valid image URL.' };
+    }
+
+    // Also allow full URLs for backwards compatibility
     try {
         new URL(imgUrl);
     } catch (e) {

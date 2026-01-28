@@ -9,6 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn = form.querySelector('button[type="submit"]');
 
     form.addEventListener('submit', handleSubmit);
+
+    // Add click handlers to pre-rendered avatars
+    document.querySelectorAll('#avatarSelection > div').forEach(avatarDiv => {
+        avatarDiv.addEventListener('click', () => {
+            const avatarFilename = avatarDiv.getAttribute('data-avatar');
+            selectAvatar(avatarFilename, avatarDiv);
+        });
+    });
 });
 
 async function handleSubmit(e) {
@@ -47,17 +55,22 @@ async function handleSubmit(e) {
 function getFormValues() {
     const username = form.querySelector('#username')?.value?.trim() || '';
     const firstName = form.querySelector('#firstName')?.value?.trim() || '';
-    const imageUrl = form.querySelector('#imageUrl')?.value?.trim() || '';
+    const selectedAvatar = form.querySelector('#selectedAvatar')?.value || '';
     const password = form.querySelector('#password')?.value || '';
     const confirmPassword = form.querySelector('#confirmPassword')?.value || '';
     const emailEl = form.querySelector('#email');
     const email = emailEl ? (emailEl.value || '').trim() : '';
-    return { username, firstName, imageUrl, password, confirmPassword, email };
+    return { username, firstName, selectedAvatar, password, confirmPassword, email };
 }
 
 function validateValues(vals) {
     if (!vals.username || !vals.firstName || !vals.email || !vals.password || !vals.confirmPassword) {
         return { ok: false, msg: 'Registration failed: please fill all required fields.' };
+    }
+    if (!vals.selectedAvatar) {
+        const avatarError = document.querySelector('#avatarError');
+        if (avatarError) avatarError.classList.remove('d-none');
+        return { ok: false, msg: 'Registration failed: please select an avatar.' };
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(vals.email)) {
@@ -74,7 +87,7 @@ function buildPayload(vals) {
         username: vals.username,
         email: vals.email,
         firstName: vals.firstName,
-        imgUrl: vals.imageUrl,
+        imgUrl: vals.selectedAvatar,
         password: vals.password,
         passwordConfirmation: vals.confirmPassword
     };
@@ -88,4 +101,26 @@ async function postRegister(payload) {
     });
     const body = await res.json().catch(() => ({}));
     return { res, body };
+}
+
+function selectAvatar(avatarFilename, element) {
+    // Remove selection from all avatars
+    document.querySelectorAll('#avatarSelection > div').forEach(el => {
+        el.className = 'border border-2 border-transparent rounded p-1';
+    });
+
+    // Add selection to clicked avatar using Bootstrap classes
+    element.className = 'border border-2 border-primary rounded p-1 bg-primary bg-opacity-10';
+
+    // Update hidden input with just the filename
+    const hiddenInput = document.querySelector('#selectedAvatar');
+    if (hiddenInput) {
+        hiddenInput.value = avatarFilename;
+    }
+
+    // Hide error message if visible
+    const avatarError = document.querySelector('#avatarError');
+    if (avatarError) {
+        avatarError.classList.add('d-none');
+    }
 }

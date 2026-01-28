@@ -2,6 +2,7 @@
 const config = require('./config/envConfig');
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const apiRoutes = require('./routes/api');
 const searchController = require('./controllers/searchController');
 const playlistController = require('./controllers/playlistController');
@@ -44,7 +45,18 @@ app.get('/login', redirectIfAuth, (req, res) => {
 
 // Redirect authenticated users away from login/register pages
 app.get('/register', redirectIfAuth, (req, res) => {
-  res.render('register');
+  // Read available avatars from the avatars directory
+  const avatarsDir = path.join(__dirname, 'public/assets/avatars');
+  let avatars = [];
+  
+  try {
+    const files = fs.readdirSync(avatarsDir);
+    avatars = files.filter(file => file.endsWith('.svg'));
+  } catch (error) {
+    console.error('Error reading avatars directory:', error);
+  }
+  
+  res.render('register', { avatars });
 });
 
 // Protected route: search page
