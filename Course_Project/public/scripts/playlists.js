@@ -19,6 +19,7 @@ let player = null;
 let playbackQueue = [];
 let currentVideoIndex = 0;
 let allVideos = []; // Cache of all video elements for filtering/sorting
+let currentSortType = null; // Track current sort order (null, 'name', or 'rating')
 // Current authenticated user (set by server in EJS template)
 const currentUser = window.currentUser;
 
@@ -184,6 +185,9 @@ function filterVideos() {
 function sortVideos(sortType) {
     const videoList = document.getElementById('video-list');
     if (!videoList) return;
+    
+    // Store current sort type
+    currentSortType = sortType;
     
     // Update button text
     const sortButton = document.getElementById('sort-dropdown-btn');
@@ -419,8 +423,13 @@ function setupEventListeners() {
             if (e.target.classList.contains('rating-input')) {
                 const entryId = e.target.dataset.entryId;
                 const newRating = e.target.value;
-                if (entryId && newRating) {
+                if (entryId) {
                     updateRating(entryId, newRating);
+                    
+                    // Re-sort if currently sorted by rating
+                    if (currentSortType === 'rating') {
+                        sortVideos('rating');
+                    }
                 }
             }
         });
