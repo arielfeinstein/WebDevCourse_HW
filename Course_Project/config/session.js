@@ -1,12 +1,14 @@
 const session = require("express-session");
 const SQLiteStore = require('connect-sqlite3')(session);
 const config = require('./envConfig');
-const path = require('path');
+const { ensureDataDirExists } = require('../utils/fileHelpers');
+
+const dataDir = ensureDataDirExists();
 
 module.exports = session({
   store: new SQLiteStore({
     db: 'sessions.sqlite',
-    dir: path.join(__dirname, '../data'),
+    dir: dataDir, 
     table: 'sessions',
     concurrentDB: true
   }),

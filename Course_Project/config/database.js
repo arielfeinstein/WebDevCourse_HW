@@ -1,15 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const fs = require('fs');
+const { ensureDataDirExists } = require('../utils/fileHelpers');
 
-const DB_PATH = path.join(__dirname, '../data/database.sqlite');
-
-// Ensure the data directory exists
-const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-    console.log('Created data directory:', dataDir);
-}
+const dataDir = ensureDataDirExists();
+const DB_PATH = path.join(dataDir, 'database.sqlite');
 
 // Create a new database connection
 const db = new sqlite3.Database(DB_PATH, (err) => {
