@@ -1,8 +1,8 @@
 # YouTube Playlist Manager
 
 **Students:**
-- [Student Name 1]
-- [Student Name 2]
+- Ariel Feinstein
+- Idan Rossin
 
 ## Overview
 
