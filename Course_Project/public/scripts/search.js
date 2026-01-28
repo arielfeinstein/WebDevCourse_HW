@@ -116,7 +116,7 @@ async function loadAndShowPlaylistsModal() {
     }
 
     try {
-        const res = await fetch(`/api/users/${currentUser.username}/playlists`);
+        const res = await fetch(`/api/playlists/users/${currentUser.username}`);
         if (!res.ok) throw new Error('Failed to fetch playlists');
         const userPlaylists = await res.json();
 

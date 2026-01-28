@@ -94,7 +94,7 @@ function buildPayload(vals) {
 }
 
 async function postRegister(payload) {
-    const res = await fetch('/api/register', {
+    const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
