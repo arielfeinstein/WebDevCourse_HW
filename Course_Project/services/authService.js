@@ -1,55 +1,68 @@
-const { readUsersFromJson, writeUsersToJson } = require('../utils/userHelpers');
+const bcrypt = require('bcrypt');
+const { userRepository } = require('../repositories');
 
 const MIN_USERNAME_LENGTH = 6;
 const MIN_PASSWORD_LENGTH = 6;
-
-// Helper: generate a stable-unique id for new users
-function generateId() {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-}
+const SALT_ROUNDS = 10;
 
 /**
  * Register a new user
  * @param {Object} userData - User registration data
- * @param {string} userData.username
- * @param {string} userData.email
- * @param {string} userData.firstName
- * @param {string} userData.imgUrl
- * @param {string} userData.password
- * @param {string} userData.passwordConfirmation
- * @returns {Object} Result object with success flag, user data or error message
+ * @returns {Promise<Object>} Result object with success flag, user data or error message
  */
-exports.registerUser = (userData) => {
-    const { username, email, firstName, imgUrl, password, passwordConfirmation } = userData;
+exports.registerUser = async (userData) => {
+    const { username, email, firstName, lastName, imgUrl, password, passwordConfirmation } = userData;
 
-    // data validation
-    let { isUsernameOkay, usernameStatusMsg } = validateUsername(username);
-    if (!isUsernameOkay) {
-        return { success: false, error: usernameStatusMsg };
+    // Data validation
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.isValid) {
+        return { success: false, error: usernameValidation.message };
     }
 
-    let { isEmailOkay, emailStatusMsg } = validateEmail(email);
-    if (!isEmailOkay) {
-        return { success: false, error: emailStatusMsg };
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+        return { success: false, error: emailValidation.message };
     }
 
-    let { isPasswordOkay, passwordStatusMsg } = validatePassword(password, passwordConfirmation);
-    if (!isPasswordOkay) {
-        return { success: false, error: passwordStatusMsg };
+    const passwordValidation = validatePassword(password, passwordConfirmation);
+    if (!passwordValidation.isValid) {
+        return { success: false, error: passwordValidation.message };
     }
 
-    let { isFirstNameOkay, firstNameStatusMsg } = validateFirstName(firstName);
-    if (!isFirstNameOkay) {
-        return { success: false, error: firstNameStatusMsg };
+    const firstNameValidation = validateFirstName(firstName);
+    if (!firstNameValidation.isValid) {
+        return { success: false, error: firstNameValidation.message };
     }
 
-    let { isImgUrlOkay, imgUrlStatusMsg } = validateImgUrl(imgUrl);
-    if (!isImgUrlOkay) {
-        return { success: false, error: imgUrlStatusMsg };
+    const imgUrlValidation = validateImgUrl(imgUrl);
+    if (!imgUrlValidation.isValid) {
+        return { success: false, error: imgUrlValidation.message };
     }
 
-    // all validations passed, add user to JSON "database"
-    const newUser = addUserToJson({ username, email, firstName, imgUrl, password });
+    // Check if username already exists
+    const usernameExists = await userRepository.usernameExists(username);
+    if (usernameExists) {
+        return { success: false, error: 'Username is already taken.' };
+    }
+
+    // Check if email already exists
+    const emailExists = await userRepository.emailExists(email);
+    if (emailExists) {
+        return { success: false, error: 'Email is already registered.' };
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Create user in database
+    const newUser = await userRepository.create({
+        username,
+        email,
+        firstName,
+        lastName: lastName || null,
+        imgUrl,
+        password: hashedPassword
+    });
 
     return { success: true, user: newUser };
 };
@@ -58,13 +71,19 @@ exports.registerUser = (userData) => {
  * Authenticate a user with username and password
  * @param {string} username
  * @param {string} password
- * @returns {Object} Result object with success flag and user data or error message
+ * @returns {Promise<Object>} Result object with success flag and user data or error message
  */
-exports.authenticateUser = (username, password) => {
-    const users = readUsersFromJson();
-    const user = users.find(u => u.username === username && u.password === password);
+exports.authenticateUser = async (username, password) => {
+    const user = await userRepository.findByUsername(username);
 
     if (!user) {
+        return { success: false, error: 'Invalid username or password.' };
+    }
+
+    // Compare password with hashed password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
         return { success: false, error: 'Invalid username or password.' };
     }
 
@@ -74,6 +93,7 @@ exports.authenticateUser = (username, password) => {
             id: user.id,
             username: user.username,
             firstName: user.firstName,
+            lastName: user.lastName,
             imgUrl: user.imgUrl
         }
     };
@@ -82,15 +102,14 @@ exports.authenticateUser = (username, password) => {
 /**
  * Get user's image URL by username
  * @param {string} username
- * @returns {Object} Result object with success flag and imageUrl or error message
+ * @returns {Promise<Object>} Result object with success flag and imageUrl or error message
  */
-exports.getUserImageUrl = (username) => {
+exports.getUserImageUrl = async (username) => {
     if (!username) {
         return { success: false, error: 'Username is required.' };
     }
 
-    const users = readUsersFromJson();
-    const user = users.find(u => u.username === username);
+    const user = await userRepository.findByUsername(username);
 
     if (!user) {
         return { success: false, error: 'User not found.' };
@@ -99,99 +118,90 @@ exports.getUserImageUrl = (username) => {
     return { success: true, imageUrl: user.imgUrl || '' };
 };
 
-// Helper functions
+/**
+ * Get user by username
+ * @param {string} username
+ * @returns {Promise<Object|null>} User object or null
+ */
+exports.getUserByUsername = async (username) => {
+    return userRepository.findByUsername(username);
+};
 
-function addUserToJson({ username, email, firstName, imgUrl, password }) {
-    const users = readUsersFromJson();
+/**
+ * Get user by ID
+ * @param {number} id
+ * @returns {Promise<Object|null>} User object or null
+ */
+exports.getUserById = async (id) => {
+    return userRepository.findById(id);
+};
 
-    const newUser = {
-        id: generateId(),
-        username,
-        email,
-        firstName,
-        imgUrl,
-        password,
-        playlistIDs: []
-    };
-
-    users.push(newUser);
-
-    writeUsersToJson(users);
-
-    return newUser;
-}
+// Validation helper functions
 
 function validateUsername(username) {
     if (!username || typeof username !== 'string' || username.length < MIN_USERNAME_LENGTH) {
-        return { isUsernameOkay: false, usernameStatusMsg: `Username must be at least ${MIN_USERNAME_LENGTH} characters long.` };
+        return { 
+            isValid: false, 
+            message: `Username must be at least ${MIN_USERNAME_LENGTH} characters long.` 
+        };
     }
-
-    const users = readUsersFromJson();
-    const usernames = users.map(user => user.username);
-    
-    if (usernames.includes(username)) {
-        return { isUsernameOkay: false, usernameStatusMsg: 'Username is already taken.' };
-    }
-
-    return { isUsernameOkay: true, usernameStatusMsg: 'Valid username.' };
+    return { isValid: true, message: 'Valid username.' };
 }
 
 function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || typeof email !== 'string' || !emailRegex.test(email)) {
-        return { isEmailOkay: false, emailStatusMsg: 'Invalid email format.' };
+        return { isValid: false, message: 'Invalid email format.' };
     }
-
-    const users = readUsersFromJson();
-    const emails = users.map(user => user.email);
-    
-    if (emails.includes(email)) {
-        return { isEmailOkay: false, emailStatusMsg: 'Email is already registered.' };
-    }
-
-    return { isEmailOkay: true, emailStatusMsg: 'Valid email.' };
+    return { isValid: true, message: 'Valid email.' };
 }
 
 function validatePassword(password, passwordConfirmation) {
-    if (!password || typeof password !== 'string' || password.length < 6) {
-        return { isPasswordOkay: false, passwordStatusMsg: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` };
+    if (!password || typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+        return { 
+            isValid: false, 
+            message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` 
+        };
     }
 
-    // atleast one letter and one non letter
+    // At least one letter and one non-letter
     const letterRegex = /[A-Za-z]/;
     const nonLetterRegex = /[^A-Za-z]/;
 
     if (!letterRegex.test(password) || !nonLetterRegex.test(password)) {
-        return { isPasswordOkay: false, passwordStatusMsg: 'Password must contain at least one letter and one non-letter character.' };
+        return { 
+            isValid: false, 
+            message: 'Password must contain at least one letter and one non-letter character.' 
+        };
     }
 
-    return { isPasswordOkay: true, passwordStatusMsg: 'Valid password.' };
+    return { isValid: true, message: 'Valid password.' };
 }
 
 function validateFirstName(firstName) {
     if (!firstName || typeof firstName !== 'string' || firstName.trim() === '') {
-        return { isFirstNameOkay: false, firstNameStatusMsg: 'First name cannot be empty.' };
+        return { isValid: false, message: 'First name cannot be empty.' };
     }
 
-    // no digits allowed
+    // No digits allowed
     const digitRegex = /\d/;
     if (digitRegex.test(firstName)) {
-        return { isFirstNameOkay: false, firstNameStatusMsg: 'First name cannot contain digits.' };
+        return { isValid: false, message: 'First name cannot contain digits.' };
     }
     
-    return { isFirstNameOkay: true, firstNameStatusMsg: 'Valid first name.' };
+    return { isValid: true, message: 'Valid first name.' };
 }
 
 function validateImgUrl(imgUrl) {
     if (!imgUrl || typeof imgUrl !== 'string' || imgUrl.trim() === '') {
-        return { isImgUrlOkay: false, imgUrlStatusMsg: 'Image URL cannot be empty.' };
+        return { isValid: false, message: 'Image URL cannot be empty.' };
     }
 
     try {
         new URL(imgUrl);
     } catch (e) {
-        return { isImgUrlOkay: false, imgUrlStatusMsg: 'Invalid image URL format.' };
+        return { isValid: false, message: 'Invalid image URL format.' };
     }
 
-    return { isImgUrlOkay: true, imgUrlStatusMsg: 'Valid image URL.' };
+    return { isValid: true, message: 'Valid image URL.' };
 }

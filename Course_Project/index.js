@@ -8,6 +8,7 @@ const playlistController = require('./controllers/playlistController');
 const sessionMiddleware = require('./config/session');
 const requireAuth = require('./middleware/requireAuth');
 const redirectIfAuth = require('./middleware/redirectIfAuth');
+const { initializeDatabase } = require('./config/database');
 
 // load environment variables from config
 const PORT = config.port;
@@ -52,7 +53,14 @@ app.get('/search', requireAuth, searchController.renderSearchPage);
 // Protected route: playlists page
 app.get('/playlists', requireAuth, playlistController.renderPlaylistsPage);
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+// Initialize database and start server
+initializeDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
