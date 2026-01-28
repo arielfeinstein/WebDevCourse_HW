@@ -130,6 +130,23 @@ class PlaylistRepository {
     }
 
     /**
+     * Get all unique YouTube video IDs across all user's playlists
+     * @param {number} userId - User ID
+     * @returns {Promise<Set<string>>} Set of YouTube video IDs
+     */
+    async getUserYoutubeIds(userId) {
+        const rows = await dbAsync.all(
+            `SELECT DISTINCT ps.youtube_id 
+             FROM playlist_songs ps
+             JOIN playlists p ON ps.playlist_id = p.id
+             WHERE p.user_id = ?`,
+            [userId]
+        );
+        
+        return new Set(rows.map(row => row.youtube_id));
+    }
+
+    /**
      * Get songs for a playlist
      * @private
      */
