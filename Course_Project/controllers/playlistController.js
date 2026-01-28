@@ -252,6 +252,12 @@ exports.updateSongInPlaylist = async (req, res) => {
             return res.status(400).json({ error: 'Rating is required' });
         }
 
+        // Validate rating is between 1-10
+        const ratingNum = parseInt(rating, 10);
+        if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 10) {
+            return res.status(400).json({ error: 'Rating must be a number between 1 and 10' });
+        }
+
         // Check if playlist exists
         const playlist = await playlistRepository.findById(playlistId);
         if (!playlist) {

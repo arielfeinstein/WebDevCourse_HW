@@ -143,13 +143,13 @@
                                             <div class="col-md-2">
                                                 <div class="mb-2">
                                                     <label class="form-label small mb-1">Rating:</label>
-                                                    <input type="number" 
-                                                           class="form-control form-control-sm rating-input" 
-                                                           min="1" 
-                                                           max="10" 
-                                                           value="<%= video.rating || '' %>" 
-                                                           placeholder="1-10"
-                                                           data-entry-id="<%= video.entryId %>">
+                                                    <select class="form-select form-select-sm rating-input" 
+                                                            data-entry-id="<%= video.entryId %>">
+                                                        <option value="">No rating</option>
+                                                        <% for (let i = 1; i <= 10; i++) { %>
+                                                            <option value="<%= i %>" <%= video.rating === i ? 'selected' : '' %>><%= i %></option>
+                                                        <% } %>
+                                                    </select>
                                                 </div>
                                             </div>
                                             <div class="col-md-2 text-end">
