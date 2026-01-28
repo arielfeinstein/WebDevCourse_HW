@@ -1,11 +1,11 @@
 /*
 Playlist Controller
 
-Handles all playlist-related operations using SQLite database through repositories.
+Handles HTTP request/response for playlist-related operations.
+Business logic is delegated to playlistService.
 */
 
-const { playlistRepository, playlistSongRepository, userRepository } = require('../repositories');
-const youtubeService = require('../services/youtubeDataService');
+const playlistService = require('../services/playlistService');
 
 // GET /playlists (render playlists page with data)
 exports.renderPlaylistsPage = async (req, res) => {
@@ -18,27 +18,15 @@ exports.renderPlaylistsPage = async (req, res) => {
     try {
         // Get all playlists for the current user
         if (req.session.user && req.session.user.id) {
-            playlists = await playlistRepository.findByUserId(req.session.user.id);
+            playlists = await playlistService.getPlaylistsForUser(req.session.user.id);
         }
 
         // If a specific playlist is selected, fetch video details
         if (playlistId) {
-            selectedPlaylist = await playlistRepository.findById(playlistId);
-            
-            if (selectedPlaylist && selectedPlaylist.songs && selectedPlaylist.songs.length > 0) {
-                const youtubeIds = selectedPlaylist.songs.map(song => song.youtubeId);
-                const videoDetails = await youtubeService.getCompleteVideoInfo(youtubeIds);
-                
-                // Merge with song entries (to preserve entryId and rating)
-                videosWithDetails = selectedPlaylist.songs.map(song => {
-                    const details = videoDetails.find(v => v.videoId === song.youtubeId);
-                    return {
-                        entryId: song.entryId,
-                        youtubeId: song.youtubeId,
-                        rating: song.rating || null,
-                        ...details
-                    };
-                });
+            const result = await playlistService.getPlaylistWithVideoDetails(playlistId);
+            if (result) {
+                selectedPlaylist = result.playlist;
+                videosWithDetails = result.videos;
             }
         }
     } catch (err) {
@@ -58,6 +46,8 @@ exports.renderPlaylistsPage = async (req, res) => {
 // GET /api/playlists
 exports.getPlaylists = async (req, res) => {
     try {
+        // Note: This returns all playlists - consider if this should be restricted
+        const { playlistRepository } = require('../repositories');
         const playlists = await playlistRepository.findAll();
         res.status(200).json(playlists);
     } catch (error) {
@@ -70,31 +60,20 @@ exports.getPlaylists = async (req, res) => {
 exports.createPlaylist = async (req, res) => {
     try {
         const { name, username } = req.body;
-
-        // Check playlist name is not empty
-        if (!name || typeof name !== 'string' || name.trim() === '') {
-            return res.status(400).json({ error: 'Playlist name is required and cannot be empty' });
-        }
-
-        // Check username is provided
-        if (!username || typeof username !== 'string' || username.trim() === '') {
-            return res.status(400).json({ error: 'Username is required' });
-        }
-
-        // Verify user exists and get user ID
-        const user = await userRepository.findByUsername(username);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const newPlaylist = await playlistRepository.create({
-            userId: user.id,
-            title: name.trim()
-        });
-
+        const newPlaylist = await playlistService.createPlaylist(name, username);
         res.status(201).json(newPlaylist);
     } catch (error) {
         console.error('Error creating playlist:', error);
+        
+        // Handle specific errors
+        if (error.message === 'Playlist name is required and cannot be empty' ||
+            error.message === 'Username is required') {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.message === 'User not found') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while creating playlist.' });
     }
 };
@@ -108,15 +87,15 @@ exports.deletePlaylist = async (req, res) => {
             return res.status(400).json({ error: 'Invalid playlist ID' });
         }
 
-        const deleted = await playlistRepository.delete(id);
-
-        if (!deleted) {
-            return res.status(404).json({ error: 'Playlist not found' });
-        }
-
+        await playlistService.deletePlaylist(id);
         res.status(200).json({ message: 'Playlist deleted successfully' });
     } catch (error) {
         console.error('Error deleting playlist:', error);
+        
+        if (error.message === 'Playlist not found') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while deleting playlist.' });
     }
 };
@@ -131,19 +110,18 @@ exports.updatePlaylist = async (req, res) => {
             return res.status(400).json({ error: 'Invalid playlist ID' });
         }
 
-        if (!name || typeof name !== 'string' || name.trim() === '') {
-            return res.status(400).json({ error: 'Playlist name is required and cannot be empty' });
-        }
-
-        const updatedPlaylist = await playlistRepository.update(id, { title: name.trim() });
-
-        if (!updatedPlaylist) {
-            return res.status(404).json({ error: 'Playlist not found' });
-        }
-
+        const updatedPlaylist = await playlistService.updatePlaylist(id, name);
         res.status(200).json(updatedPlaylist);
     } catch (error) {
         console.error('Error updating playlist:', error);
+        
+        if (error.message === 'Playlist name is required and cannot be empty') {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.message === 'Playlist not found') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while updating playlist.' });
     }
 };
@@ -158,28 +136,18 @@ exports.addSongToPlaylist = async (req, res) => {
             return res.status(400).json({ error: 'Invalid playlist ID' });
         }
 
-        if (!youtubeId || typeof youtubeId !== 'string' || youtubeId.trim() === '') {
-            return res.status(400).json({ error: 'youtubeId is required' });
-        }
-
-        // Check if playlist exists
-        const playlist = await playlistRepository.findById(playlistId);
-        if (!playlist) {
-            return res.status(404).json({ error: 'Playlist not found' });
-        }
-
-        // Add song to playlist
-        await playlistSongRepository.create({
-            playlistId,
-            youtubeId: youtubeId.trim(),
-            rating: 0
-        });
-
-        // Return updated playlist
-        const updatedPlaylist = await playlistRepository.findById(playlistId);
+        const updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, youtubeId);
         res.status(200).json(updatedPlaylist);
     } catch (error) {
         console.error('Error adding song to playlist:', error);
+        
+        if (error.message === 'youtubeId is required') {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.message === 'Playlist not found') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while adding song to playlist.' });
     }
 };
@@ -194,26 +162,15 @@ exports.removeSongFromPlaylist = async (req, res) => {
             return res.status(400).json({ error: 'Invalid playlist or song ID' });
         }
 
-        // Check if playlist exists
-        const playlist = await playlistRepository.findById(playlistId);
-        if (!playlist) {
-            return res.status(404).json({ error: 'Playlist not found' });
-        }
-
-        // Check if song exists in playlist
-        const songExists = await playlistSongRepository.existsInPlaylist(songId, playlistId);
-        if (!songExists) {
-            return res.status(404).json({ error: 'Song not found in playlist' });
-        }
-
-        // Delete song
-        await playlistSongRepository.delete(songId);
-
-        // Return updated playlist
-        const updatedPlaylist = await playlistRepository.findById(playlistId);
+        const updatedPlaylist = await playlistService.removeSongFromPlaylist(playlistId, songId);
         res.status(200).json(updatedPlaylist);
     } catch (error) {
         console.error('Error removing song from playlist:', error);
+        
+        if (error.message === 'Playlist not found' || error.message === 'Song not found in playlist') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while removing song from playlist.' });
     }
 };
@@ -222,17 +179,15 @@ exports.removeSongFromPlaylist = async (req, res) => {
 exports.getPlaylistsForUser = async (req, res) => {
     try {
         const { username } = req.params;
-
-        // Verify user exists and get user ID
-        const user = await userRepository.findByUsername(username);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const playlists = await playlistRepository.findByUserId(user.id);
+        const playlists = await playlistService.getPlaylistsByUsername(username);
         res.status(200).json(playlists);
     } catch (error) {
         console.error('Error fetching user playlists:', error);
+        
+        if (error.message === 'User not found') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while fetching user playlists.' });
     }
 };
@@ -248,34 +203,19 @@ exports.updateSongInPlaylist = async (req, res) => {
             return res.status(400).json({ error: 'Invalid playlist or song ID' });
         }
 
-        if (rating === undefined) {
-            return res.status(400).json({ error: 'Rating is required' });
-        }
-
-        // Validate rating is between 1-10
-        const ratingNum = parseInt(rating, 10);
-        if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 10) {
-            return res.status(400).json({ error: 'Rating must be a number between 1 and 10' });
-        }
-
-        // Check if playlist exists
-        const playlist = await playlistRepository.findById(playlistId);
-        if (!playlist) {
-            return res.status(404).json({ error: 'Playlist not found' });
-        }
-
-        // Check if song exists in playlist
-        const songExists = await playlistSongRepository.existsInPlaylist(songId, playlistId);
-        if (!songExists) {
-            return res.status(404).json({ error: 'Song not found in playlist' });
-        }
-
-        // Update song rating
-        const updatedSong = await playlistSongRepository.update(songId, { rating });
-
+        const updatedSong = await playlistService.updateSongRating(playlistId, songId, rating);
         res.status(200).json(updatedSong);
     } catch (error) {
         console.error('Error updating song in playlist:', error);
+        
+        if (error.message === 'Rating is required' || 
+            error.message === 'Rating must be a number between 1 and 10') {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.message === 'Playlist not found' || error.message === 'Song not found in playlist') {
+            return res.status(404).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'An error occurred while updating song in playlist.' });
     }
 };
